@@ -3,6 +3,7 @@ import { PeerProvider, usePeer } from './context/PeerContext';
 import { Lobby } from './components/Lobby';
 import { PlatformerGame } from './components/games/PlatformerGame';
 import { TopDownGame } from './components/games/TopDownGame';
+import { SnakeGame } from './components/games/SnakeGame';
 import { 
   MessageSquare, ArrowRight, Gamepad, HelpCircle 
 } from 'lucide-react';
@@ -71,6 +72,7 @@ const AppContent: React.FC = () => {
             <div className="game-main-content">
               {activeGame === 'platformer' && <PlatformerGame />}
               {activeGame === 'shooter' && <TopDownGame />}
+              {activeGame === 'snake' && <SnakeGame />}
             </div>
 
             {/* Sidebar Column on right */}
@@ -101,7 +103,7 @@ const AppContent: React.FC = () => {
                       <span className="text-yellow">🔑 Gold Key</span>
                     </li>
                   </ul>
-                ) : (
+                ) : activeGame === 'shooter' ? (
                   <ul className="controls-list">
                     <li className="control-item">
                       <span className="control-label">Move Around</span>
@@ -118,6 +120,25 @@ const AppContent: React.FC = () => {
                     <li className="control-item">
                       <span className="control-label">Health Pool</span>
                       <span className="text-magenta">❤️ Shared</span>
+                    </li>
+                  </ul>
+                ) : (
+                  <ul className="controls-list">
+                    <li className="control-item">
+                      <span className="control-label">Steer Snake</span>
+                      <span className="control-key">Mouse Move</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Speed Boost</span>
+                      <span className="control-key">Left Click / Space</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Target Score</span>
+                      <span className="text-green">🏆 1,500 pts</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Avoid Crash</span>
+                      <span className="text-magenta">💥 Bots & Walls</span>
                     </li>
                   </ul>
                 )}

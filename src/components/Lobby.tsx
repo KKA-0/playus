@@ -222,6 +222,21 @@ export const Lobby: React.FC = () => {
                 <span className="game-card-players">Top-Down Survival</span>
               </div>
             </div>
+
+            <div 
+              className={`game-option-card snake ${activeGame === 'snake' ? 'selected' : ''}`}
+              onClick={() => isHost && selectGame('snake')}
+              style={{ pointerEvents: isHost ? 'auto' : 'none' }}
+            >
+              <div className="game-card-img">
+                <Gamepad2 className="game-card-icon" />
+              </div>
+              <div className="game-card-content">
+                <h3 className="game-card-title">Cyber Slither</h3>
+                <p className="game-card-desc">Slither around, eat glowing pellets to grow, and speed boost with left click. Avoid crashing into AI opponent bots or the screen boundaries!</p>
+                <span className="game-card-players">Co-op Snake Arena</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -232,6 +247,7 @@ export const Lobby: React.FC = () => {
             <span className="font-display" style={{ fontWeight: 700, color: activeGame ? 'var(--neon-green)' : 'var(--text-muted)' }}>
               {activeGame === 'platformer' && 'Gem Hunters (Platformer)'}
               {activeGame === 'shooter' && 'Arena Survival (Top-Down)'}
+              {activeGame === 'snake' && 'Cyber Slither (Snake Arena)'}
               {!activeGame && 'No Game Selected'}
             </span>
           </div>
