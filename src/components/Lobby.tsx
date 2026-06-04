@@ -237,6 +237,21 @@ export const Lobby: React.FC = () => {
                 <span className="game-card-players">Co-op Snake Arena</span>
               </div>
             </div>
+
+            <div 
+              className={`game-option-card chained ${activeGame === 'chained' ? 'selected' : ''}`}
+              onClick={() => isHost && selectGame('chained')}
+              style={{ pointerEvents: isHost ? 'auto' : 'none' }}
+            >
+              <div className="game-card-img">
+                <Gamepad2 className="game-card-icon" />
+              </div>
+              <div className="game-card-content">
+                <h3 className="game-card-title">Chained Together</h3>
+                <p className="game-card-desc">Coordinate your movements and jumps in this physics climb! You are linked by a spring chain, so pull each other up to ascend platforms.</p>
+                <span className="game-card-players">Co-op physics climber</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -248,6 +263,7 @@ export const Lobby: React.FC = () => {
               {activeGame === 'platformer' && 'Gem Hunters (Platformer)'}
               {activeGame === 'shooter' && 'Arena Survival (Top-Down)'}
               {activeGame === 'snake' && 'Cyber Slither (Snake Arena)'}
+              {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
               {!activeGame && 'No Game Selected'}
             </span>
           </div>

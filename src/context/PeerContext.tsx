@@ -19,7 +19,7 @@ interface PeerContextType {
   isHost: boolean;
   messages: ChatMessage[];
   ping: number;
-  activeGame: 'platformer' | 'shooter' | 'snake' | null;
+  activeGame: 'platformer' | 'shooter' | 'snake' | 'chained' | null;
   isGameStarted: boolean;
   gameData: any;
   gameEvent: any;
@@ -29,7 +29,7 @@ interface PeerContextType {
   disconnect: () => void;
   sendMessage: (text: string) => void;
   sendGameData: (data: any) => void;
-  selectGame: (game: 'platformer' | 'shooter' | 'snake' | null) => void;
+  selectGame: (game: 'platformer' | 'shooter' | 'snake' | 'chained' | null) => void;
   startGame: () => void;
   stopGame: () => void;
   sendGameEvent: (data: any) => void;
@@ -54,7 +54,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isHost, setIsHost] = useState<boolean>(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [ping, setPing] = useState<number>(0);
-  const [activeGame, setActiveGame] = useState<'platformer' | 'shooter' | 'snake' | null>(null);
+  const [activeGame, setActiveGame] = useState<'platformer' | 'shooter' | 'snake' | 'chained' | null>(null);
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
   const [gameData, setGameData] = useState<any>(null);
   const [gameEvent, setGameEvent] = useState<any>(null);
@@ -311,7 +311,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Select game (Host authoritative, client can request but let's make host broadcast)
-  const selectGame = (game: 'platformer' | 'shooter' | 'snake' | null) => {
+  const selectGame = (game: 'platformer' | 'shooter' | 'snake' | 'chained' | null) => {
     setActiveGame(game);
     if (connRef.current && connRef.current.open) {
       connRef.current.send({

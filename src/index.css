@@ -588,6 +588,12 @@ body {
   --accent-bg: rgba(57, 255, 20, 0.03);
 }
 
+.game-option-card.chained {
+  --accent-color: var(--neon-purple);
+  --accent-glow: rgba(157, 78, 221, 0.4);
+  --accent-bg: rgba(157, 78, 221, 0.04);
+}
+
 .game-card-img {
   height: 120px;
   background-size: cover;
@@ -609,6 +615,9 @@ body {
 }
 .game-option-card.snake .game-card-img {
   background-image: linear-gradient(135deg, rgba(57, 255, 20, 0.1), rgba(157, 78, 221, 0.2));
+}
+.game-option-card.chained .game-card-img {
+  background-image: linear-gradient(135deg, rgba(157, 78, 221, 0.15), rgba(0, 240, 255, 0.25));
 }
 
 .game-card-icon {

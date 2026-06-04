@@ -4,6 +4,7 @@ import { Lobby } from './components/Lobby';
 import { PlatformerGame } from './components/games/PlatformerGame';
 import { TopDownGame } from './components/games/TopDownGame';
 import { SnakeGame } from './components/games/SnakeGame';
+import { ChainedGame } from './components/games/ChainedGame';
 import { 
   MessageSquare, ArrowRight, Gamepad, HelpCircle 
 } from 'lucide-react';
@@ -73,6 +74,7 @@ const AppContent: React.FC = () => {
               {activeGame === 'platformer' && <PlatformerGame />}
               {activeGame === 'shooter' && <TopDownGame />}
               {activeGame === 'snake' && <SnakeGame />}
+              {activeGame === 'chained' && <ChainedGame />}
             </div>
 
             {/* Sidebar Column on right */}
@@ -122,7 +124,7 @@ const AppContent: React.FC = () => {
                       <span className="text-magenta">❤️ Shared</span>
                     </li>
                   </ul>
-                ) : (
+                ) : activeGame === 'snake' ? (
                   <ul className="controls-list">
                     <li className="control-item">
                       <span className="control-label">Steer Snake</span>
@@ -139,6 +141,25 @@ const AppContent: React.FC = () => {
                     <li className="control-item">
                       <span className="control-label">Avoid Crash</span>
                       <span className="text-magenta">💥 Bots & Walls</span>
+                    </li>
+                  </ul>
+                ) : (
+                  <ul className="controls-list">
+                    <li className="control-item">
+                      <span className="control-label">Walk Left/Right</span>
+                      <span className="control-key">A, D / ←, →</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Jump Up</span>
+                      <span className="control-key">W, Space / ↑</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Tension pull</span>
+                      <span className="text-purple">⛓️ Chained</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Goal</span>
+                      <span className="text-green">🏁 Exit Portal</span>
                     </li>
                   </ul>
                 )}
