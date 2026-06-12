@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePeer } from '../context/PeerContext';
 import { 
   Play, Copy, Check, MessageSquare, Users, Wifi, 
-  Gamepad2, LogOut, ArrowRight, ShieldAlert 
+  Gamepad2, LogOut, ArrowRight, ShieldAlert, Music
 } from 'lucide-react';
 
 export const Lobby: React.FC = () => {
@@ -20,7 +20,7 @@ export const Lobby: React.FC = () => {
     disconnect,
     sendMessage,
     selectGame,
-    startGame
+    startGame,
   } = usePeer();
 
   const [inputCode, setInputCode] = useState<string>('');
@@ -64,6 +64,8 @@ export const Lobby: React.FC = () => {
     sendMessage(chatInput.trim());
     setChatInput('');
   };
+
+
 
   // Render Setup Screen (Not connected)
   if (!isConnected && !peerId && !isConnecting) {
@@ -252,20 +254,42 @@ export const Lobby: React.FC = () => {
                 <span className="game-card-players">Co-op physics climber</span>
               </div>
             </div>
+
+            <div 
+              className={`game-option-card music ${activeGame === 'music' ? 'selected' : ''}`}
+              onClick={() => isHost && selectGame('music')}
+              style={{ pointerEvents: isHost ? 'auto' : 'none' }}
+            >
+              <div className="game-card-img" style={{ backgroundImage: 'linear-gradient(135deg, #1db954, #191414)' }}>
+                <Music className="game-card-icon" style={{ opacity: 0.9 }} />
+              </div>
+              <div className="game-card-content">
+                <h3 className="game-card-title">Co-op Music Sync</h3>
+                <p className="game-card-desc">Sync and listen to Spotify or YouTube music in real-time with your friend. Paste URLs, toggle players, and control playback together!</p>
+                <span className="game-card-players">Music Party Mode</span>
+              </div>
+            </div>
           </div>
         </div>
 
+
+
         {/* Launch actions */}
         <div className="lobby-launch-bar glass-panel">
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Selected Game</span>
-            <span className="font-display" style={{ fontWeight: 700, color: activeGame ? 'var(--neon-green)' : 'var(--text-muted)' }}>
-              {activeGame === 'platformer' && 'Gem Hunters (Platformer)'}
-              {activeGame === 'shooter' && 'Arena Survival (Top-Down)'}
-              {activeGame === 'snake' && 'Cyber Slither (Snake Arena)'}
-              {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
-              {!activeGame && 'No Game Selected'}
-            </span>
+          <div style={{ display: 'flex', gap: '2rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Selected Game</span>
+              <span className="font-display" style={{ fontWeight: 700, color: activeGame ? 'var(--neon-green)' : 'var(--text-muted)' }}>
+                {activeGame === 'platformer' && 'Gem Hunters (Platformer)'}
+                {activeGame === 'shooter' && 'Arena Survival (Top-Down)'}
+                {activeGame === 'snake' && 'Cyber Slither (Snake Arena)'}
+                {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
+                {activeGame === 'music' && 'Co-op Music Sync (Music Room)'}
+                {!activeGame && 'No Game Selected'}
+              </span>
+            </div>
+
+
           </div>
 
           <div style={{ display: 'flex', gap: '1rem' }}>
@@ -292,41 +316,45 @@ export const Lobby: React.FC = () => {
         </div>
       </div>
 
-      {/* Chat Sidebar */}
-      <div className="lobby-chat-panel glass-panel">
-        <div className="chat-header">
-          <MessageSquare size={18} className="text-cyan" />
-          <h3 className="chat-header-title">Lobby Chat</h3>
-          <div className="peer-badge" style={{ marginLeft: 'auto', padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
-            {ping}ms
-          </div>
-        </div>
+      {/* Sidebar Column */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
 
-        <div className="chat-messages">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`chat-message ${msg.sender}`}>
-              {msg.sender !== 'system' && (
-                <span className="msg-sender">{msg.senderName}</span>
-              )}
-              <div className="msg-bubble">{msg.text}</div>
+        {/* Chat Sidebar */}
+        <div className="lobby-chat-panel glass-panel" style={{ height: '360px' }}>
+          <div className="chat-header">
+            <MessageSquare size={18} className="text-cyan" />
+            <h3 className="chat-header-title">Lobby Chat</h3>
+            <div className="peer-badge" style={{ marginLeft: 'auto', padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
+              {ping}ms
             </div>
-          ))}
-          <div ref={chatEndRef} />
-        </div>
+          </div>
 
-        <form onSubmit={handleSendMessage} className="chat-input-form">
-          <input
-            type="text"
-            className="input-neon"
-            placeholder="Type a message..."
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem' }}
-          />
-          <button type="submit" className="copy-btn" style={{ padding: '0.6rem' }} disabled={!chatInput.trim()}>
-            <ArrowRight size={18} />
-          </button>
-        </form>
+          <div className="chat-messages">
+            {messages.map((msg) => (
+              <div key={msg.id} className={`chat-message ${msg.sender}`}>
+                {msg.sender !== 'system' && (
+                  <span className="msg-sender">{msg.senderName}</span>
+                )}
+                <div className="msg-bubble">{msg.text}</div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+
+          <form onSubmit={handleSendMessage} className="chat-input-form">
+            <input
+              type="text"
+              className="input-neon"
+              placeholder="Type a message..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem' }}
+            />
+            <button type="submit" className="copy-btn" style={{ padding: '0.6rem' }} disabled={!chatInput.trim()}>
+              <ArrowRight size={18} />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

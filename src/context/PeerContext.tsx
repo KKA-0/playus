@@ -19,7 +19,7 @@ interface PeerContextType {
   isHost: boolean;
   messages: ChatMessage[];
   ping: number;
-  activeGame: 'platformer' | 'shooter' | 'snake' | 'chained' | null;
+  activeGame: 'platformer' | 'shooter' | 'snake' | 'chained' | 'music' | null;
   isGameStarted: boolean;
   gameData: any;
   gameEvent: any;
@@ -29,10 +29,16 @@ interface PeerContextType {
   disconnect: () => void;
   sendMessage: (text: string) => void;
   sendGameData: (data: any) => void;
-  selectGame: (game: 'platformer' | 'shooter' | 'snake' | 'chained' | null) => void;
+  selectGame: (game: 'platformer' | 'shooter' | 'snake' | 'chained' | 'music' | null) => void;
   startGame: () => void;
   stopGame: () => void;
   sendGameEvent: (data: any) => void;
+  spotifySyncData: { uri: string; position: number; isPaused: boolean; timestamp: number; genre?: string | null } | null;
+  sendSpotifySync: (data: { uri: string; position: number; isPaused: boolean; genre?: string | null }) => void;
+  activeMusicUri: string;
+  setActiveMusicUri: (uri: string) => void;
+  soundtrackGenre: string | null;
+  setSoundtrackGenre: (genre: string | null) => void;
 }
 
 const PeerContext = createContext<PeerContextType | undefined>(undefined);
@@ -54,10 +60,13 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isHost, setIsHost] = useState<boolean>(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [ping, setPing] = useState<number>(0);
-  const [activeGame, setActiveGame] = useState<'platformer' | 'shooter' | 'snake' | 'chained' | null>(null);
+  const [activeGame, setActiveGame] = useState<'platformer' | 'shooter' | 'snake' | 'chained' | 'music' | null>(null);
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
   const [gameData, setGameData] = useState<any>(null);
   const [gameEvent, setGameEvent] = useState<any>(null);
+  const [spotifySyncData, setSpotifySyncData] = useState<{ uri: string; position: number; isPaused: boolean; timestamp: number; genre?: string | null } | null>(null);
+  const [activeMusicUri, setActiveMusicUri] = useState<string>('spotify:playlist:37i9dQZF1DXdLTE7aGDX1r');
+  const [soundtrackGenre, setSoundtrackGenre] = useState<string | null>(null);
 
   const peerRef = useRef<Peer | null>(null);
   const connRef = useRef<DataConnection | null>(null);
@@ -171,6 +180,16 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setGameEvent(data.payload);
           break;
 
+        case 'spotify_sync':
+          setSpotifySyncData(data.payload);
+          if (data.payload && data.payload.uri) {
+            setActiveMusicUri(data.payload.uri);
+          }
+          if (data.payload && data.payload.genre !== undefined) {
+            setSoundtrackGenre(data.payload.genre);
+          }
+          break;
+
         default:
           break;
       }
@@ -275,6 +294,9 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessages([]);
     setActiveGame(null);
     setIsHost(false);
+    setSpotifySyncData(null);
+    setActiveMusicUri('spotify:playlist:37i9dQZF1DXdLTE7aGDX1r');
+    setSoundtrackGenre(null);
   };
 
   const sendMessage = (text: string) => {
@@ -311,7 +333,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Select game (Host authoritative, client can request but let's make host broadcast)
-  const selectGame = (game: 'platformer' | 'shooter' | 'snake' | 'chained' | null) => {
+  const selectGame = (game: 'platformer' | 'shooter' | 'snake' | 'chained' | 'music' | null) => {
     setActiveGame(game);
     if (connRef.current && connRef.current.open) {
       connRef.current.send({
@@ -341,6 +363,18 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetGameEvent = () => {
     setGameEvent(null);
+  };
+
+  const sendSpotifySync = (data: { uri: string; position: number; isPaused: boolean; genre?: string | null }) => {
+    if (connRef.current && connRef.current.open) {
+      connRef.current.send({
+        type: 'spotify_sync',
+        payload: {
+          ...data,
+          timestamp: Date.now()
+        }
+      });
+    }
   };
 
   // Broadcast one-off game events (e.g. key collect, level advancement)
@@ -378,6 +412,12 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startGame,
         stopGame,
         sendGameEvent,
+        spotifySyncData,
+        sendSpotifySync,
+        activeMusicUri,
+        setActiveMusicUri,
+        soundtrackGenre,
+        setSoundtrackGenre,
       }}
     >
       {children}

@@ -5,6 +5,7 @@ import { PlatformerGame } from './components/games/PlatformerGame';
 import { TopDownGame } from './components/games/TopDownGame';
 import { SnakeGame } from './components/games/SnakeGame';
 import { ChainedGame } from './components/games/ChainedGame';
+import { MusicPlayerRoom } from './components/games/MusicPlayerRoom';
 import { 
   MessageSquare, ArrowRight, Gamepad, HelpCircle 
 } from 'lucide-react';
@@ -75,10 +76,12 @@ const AppContent: React.FC = () => {
               {activeGame === 'shooter' && <TopDownGame />}
               {activeGame === 'snake' && <SnakeGame />}
               {activeGame === 'chained' && <ChainedGame />}
+              {activeGame === 'music' && <MusicPlayerRoom />}
             </div>
 
             {/* Sidebar Column on right */}
             <div className="game-side-column">
+
               {/* Controls guide */}
               <div className="controls-legend-panel glass-panel">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -143,7 +146,7 @@ const AppContent: React.FC = () => {
                       <span className="text-magenta">💥 Bots & Walls</span>
                     </li>
                   </ul>
-                ) : (
+                ) : activeGame === 'chained' ? (
                   <ul className="controls-list">
                     <li className="control-item">
                       <span className="control-label">Walk Left/Right</span>
@@ -160,6 +163,21 @@ const AppContent: React.FC = () => {
                     <li className="control-item">
                       <span className="control-label">Goal</span>
                       <span className="text-green">🏁 Exit Portal</span>
+                    </li>
+                  </ul>
+                ) : (
+                  <ul className="controls-list">
+                    <li className="control-item">
+                      <span className="control-label">Music Service</span>
+                      <span className="control-key">Spotify / YT</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Timeline Seek</span>
+                      <span className="text-cyan">Auto-Synced ⚡</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Vibe Playlists</span>
+                      <span className="text-green">Curated Beat Cards</span>
                     </li>
                   </ul>
                 )}
