@@ -5,12 +5,12 @@ import confetti from 'canvas-confetti';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
-const GRAVITY = 0.5;
+const GRAVITY = 0.7;
 const WALK_SPEED = 3.6;
 const JUMP_FORCE = -10.5;
 
 const MAX_CHAIN_LENGTH = 140; // Max distance players can move apart
-const SPRING_CONSTANT = 0.06; // Pull velocity force strength
+const SPRING_CONSTANT = 0.08; // Pull velocity force strength
 const POSITION_SNAP_THRESHOLD = 150; // Hard snap threshold
 
 interface PlayerState {
@@ -49,7 +49,7 @@ interface Particle {
 const PLATFORMS: Platform[] = [
   // Bottom floor - Camp 1
   { x: -100, y: 440, w: 1000, h: 40, isCheckpoint: true, checkpointLabel: 'CAMP 1: BASE CAMP', checkpointId: 0 },
-  
+
   // Low Slabs
   { x: 320, y: 340, w: 160, h: 16 },
   { x: 100, y: 250, w: 180, h: 16 },
@@ -57,7 +57,7 @@ const PLATFORMS: Platform[] = [
   { x: 300, y: 150, w: 200, h: 16 },
   { x: 80, y: 50, w: 180, h: 16 },
   { x: 540, y: 50, w: 180, h: 16 },
-  
+
   // Camp 2 (Checkpoint Middle)
   { x: 200, y: -50, w: 400, h: 24, isCheckpoint: true, checkpointLabel: 'CAMP 2: RIFT BRIDGE', checkpointId: 1 },
 
@@ -237,7 +237,7 @@ export const ChainedGame: React.FC = () => {
       const idx = gameEvent.checkpointIdx;
       currentCheckpointRef.current = idx;
       setActiveCheckpoint(idx);
-      
+
       const spawnP1 = CHECKPOINTS[idx].p1;
       const spawnP2 = CHECKPOINTS[idx].p2;
 
@@ -426,7 +426,7 @@ export const ChainedGame: React.FC = () => {
         if (overshoot > 0) {
           const snapX = nx * overshoot * 0.5;
           const snapY = ny * overshoot * 0.5;
-          
+
           if (isHost) {
             p1.x += snapX;
             p1.y += snapY;
@@ -466,7 +466,7 @@ export const ChainedGame: React.FC = () => {
         if (p1.y > activeCp.deathY || p2.y > activeCp.deathY) {
           // Reset players to active checkpoint
           sendGameEvent({ type: 'respawn_checkpoint', checkpointIdx: currentCheckpointRef.current });
-          
+
           // Re-trigger locally for host
           const spawnP1 = activeCp.p1;
           const spawnP2 = activeCp.p2;
@@ -697,14 +697,28 @@ export const ChainedGame: React.FC = () => {
       ctx.restore();
     };
 
-    const gameLoop = () => {
-      updatePhysics();
+    let lastTime = performance.now();
+    const timeStep = 1000 / 60;
+    let accumulator = 0;
+
+    const gameLoop = (currentTime: number) => {
+      let deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
+      if (deltaTime > 100) deltaTime = 100;
+
+      accumulator += deltaTime;
+      while (accumulator >= timeStep) {
+        updatePhysics();
+        accumulator -= timeStep;
+      }
+
       drawGame();
       animationId = requestAnimationFrame(gameLoop);
     };
 
     if (isConnected) {
-      gameLoop();
+      animationId = requestAnimationFrame(gameLoop);
     }
 
     return () => {

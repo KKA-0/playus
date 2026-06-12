@@ -1169,8 +1169,22 @@ export const SnakeGame: React.FC = () => {
       ctx.restore();
     };
 
-    const gameLoop = () => {
-      updatePhysics();
+    let lastTime = performance.now();
+    const timeStep = 1000 / 60;
+    let accumulator = 0;
+
+    const gameLoop = (currentTime: number) => {
+      let deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
+      if (deltaTime > 100) deltaTime = 100;
+
+      accumulator += deltaTime;
+      while (accumulator >= timeStep) {
+        updatePhysics();
+        accumulator -= timeStep;
+      }
+
       drawGame();
       animationId = requestAnimationFrame(gameLoop);
     };
@@ -1184,7 +1198,7 @@ export const SnakeGame: React.FC = () => {
     }
 
     if (isConnected) {
-      gameLoop();
+      animationId = requestAnimationFrame(gameLoop);
     }
 
     return () => {

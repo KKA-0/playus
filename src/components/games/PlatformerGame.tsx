@@ -270,8 +270,22 @@ export const PlatformerGame: React.FC = () => {
   useEffect(() => {
     let animationId: number;
 
-    const gameLoop = () => {
-      updatePhysics();
+    let lastTime = performance.now();
+    const timeStep = 1000 / 60;
+    let accumulator = 0;
+
+    const gameLoop = (currentTime: number) => {
+      let deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+
+      if (deltaTime > 100) deltaTime = 100;
+
+      accumulator += deltaTime;
+      while (accumulator >= timeStep) {
+        updatePhysics();
+        accumulator -= timeStep;
+      }
+
       drawGame();
       syncNetwork();
       animationId = requestAnimationFrame(gameLoop);
@@ -720,7 +734,7 @@ export const PlatformerGame: React.FC = () => {
 
     // Start running loop
     if (isConnected && !gameCompleted) {
-      gameLoop();
+      animationId = requestAnimationFrame(gameLoop);
     }
 
     return () => {
