@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PeerProvider, usePeer } from './context/PeerContext';
 import { Lobby } from './components/Lobby';
+import { LandingPage } from './components/LandingPage';
 import { PlatformerGame } from './components/games/PlatformerGame';
 import { TopDownGame } from './components/games/TopDownGame';
 import { SnakeGame } from './components/games/SnakeGame';
@@ -19,11 +20,16 @@ const AppContent: React.FC = () => {
     peerId,
     targetId,
     messages,
-    sendMessage
+    sendMessage,
+    selectGame
   } = usePeer();
 
   const [chatInput, setChatInput] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [userWantsLanding, setUserWantsLanding] = useState<boolean>(true);
+
+  // Computed state: Show landing if user wants it AND they are not actively hosting/connected
+  const activeLanding = userWantsLanding && !isConnected && !peerId;
 
   // Auto-scroll gameplay chat to bottom
   useEffect(() => {
@@ -44,10 +50,35 @@ const AppContent: React.FC = () => {
 
       {/* Global Header */}
       <header className="header-container">
-        <div className="logo-section">
+        <div 
+          className="logo-section" 
+          style={{ cursor: !isGameStarted ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (!isGameStarted) {
+              setUserWantsLanding(true);
+            }
+          }}
+        >
           <Gamepad size={28} className="text-cyan" />
           <span className="logo-text font-display">PlayUs</span>
         </div>
+
+        {!isGameStarted && (
+          <nav className="nav-links">
+            <button 
+              className={`nav-link ${activeLanding ? 'active' : ''}`}
+              onClick={() => setUserWantsLanding(true)}
+            >
+              Mission
+            </button>
+            <button 
+              className={`nav-link ${!activeLanding ? 'active' : ''}`}
+              onClick={() => setUserWantsLanding(false)}
+            >
+              Arcade Lobby
+            </button>
+          </nav>
+        )}
 
         {isConnected && (
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -67,7 +98,16 @@ const AppContent: React.FC = () => {
       {/* Main View Area */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {!isGameStarted ? (
-          <Lobby />
+          activeLanding ? (
+            <LandingPage onStartPlaying={(selectedGame) => {
+              if (selectedGame) {
+                selectGame(selectedGame);
+              }
+              setUserWantsLanding(false);
+            }} />
+          ) : (
+            <Lobby />
+          )
         ) : (
           <div className="game-layout">
             {/* Game Canvas on left */}
