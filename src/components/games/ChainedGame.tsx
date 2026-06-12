@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
-const GRAVITY = 0.7;
+const GRAVITY = 0.5;
 const WALK_SPEED = 3.6;
 const JUMP_FORCE = -10.5;
 
@@ -697,28 +697,14 @@ export const ChainedGame: React.FC = () => {
       ctx.restore();
     };
 
-    let lastTime = performance.now();
-    const timeStep = 1000 / 60;
-    let accumulator = 0;
-
-    const gameLoop = (currentTime: number) => {
-      let deltaTime = currentTime - lastTime;
-      lastTime = currentTime;
-
-      if (deltaTime > 100) deltaTime = 100;
-
-      accumulator += deltaTime;
-      while (accumulator >= timeStep) {
-        updatePhysics();
-        accumulator -= timeStep;
-      }
-
+    const gameLoop = () => {
+      updatePhysics();
       drawGame();
       animationId = requestAnimationFrame(gameLoop);
     };
 
     if (isConnected) {
-      animationId = requestAnimationFrame(gameLoop);
+      gameLoop();
     }
 
     return () => {
