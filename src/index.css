@@ -594,6 +594,12 @@ body {
   --accent-bg: rgba(157, 78, 221, 0.04);
 }
 
+.game-option-card.farm {
+  --accent-color: var(--neon-yellow);
+  --accent-glow: rgba(255, 234, 0, 0.35);
+  --accent-bg: rgba(255, 234, 0, 0.03);
+}
+
 .game-card-img {
   height: 120px;
   background-size: cover;
@@ -618,6 +624,9 @@ body {
 }
 .game-option-card.chained .game-card-img {
   background-image: linear-gradient(135deg, rgba(157, 78, 221, 0.15), rgba(0, 240, 255, 0.25));
+}
+.game-option-card.farm .game-card-img {
+  background-image: linear-gradient(135deg, rgba(57, 255, 20, 0.15), rgba(255, 234, 0, 0.25));
 }
 
 .game-card-icon {
@@ -1450,5 +1459,24 @@ body {
   font-size: 0.85rem;
   line-height: 1.5;
   margin: 0;
+}
+
+/* Fullscreen Canvas Styles */
+.canvas-container:fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.canvas-container:fullscreen canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
 }
 

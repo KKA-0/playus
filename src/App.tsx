@@ -7,6 +7,7 @@ import { TopDownGame } from './components/games/TopDownGame';
 import { SnakeGame } from './components/games/SnakeGame';
 import { ChainedGame } from './components/games/ChainedGame';
 import { MusicPlayerRoom } from './components/games/MusicPlayerRoom';
+import { FarmGame } from './components/games/FarmGame';
 import { 
   MessageSquare, ArrowRight, Gamepad, HelpCircle 
 } from 'lucide-react';
@@ -117,6 +118,7 @@ const AppContent: React.FC = () => {
               {activeGame === 'snake' && <SnakeGame />}
               {activeGame === 'chained' && <ChainedGame />}
               {activeGame === 'music' && <MusicPlayerRoom />}
+              {activeGame === 'farm' && <FarmGame />}
             </div>
 
             {/* Sidebar Column on right */}
@@ -205,7 +207,7 @@ const AppContent: React.FC = () => {
                       <span className="text-green">🏁 Exit Portal</span>
                     </li>
                   </ul>
-                ) : (
+                ) : activeGame === 'music' ? (
                   <ul className="controls-list">
                     <li className="control-item">
                       <span className="control-label">Music Service</span>
@@ -218,6 +220,21 @@ const AppContent: React.FC = () => {
                     <li className="control-item">
                       <span className="control-label">Vibe Playlists</span>
                       <span className="text-green">Curated Beat Cards</span>
+                    </li>
+                  </ul>
+                ) : (
+                  <ul className="controls-list">
+                    <li className="control-item">
+                      <span className="control-label">Walk Around</span>
+                      <span className="control-key">WASD / Arrows</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Farm Plot</span>
+                      <span className="text-yellow">🌱 Spawn center</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Gender Select</span>
+                      <span className="text-green">Male / Female</span>
                     </li>
                   </ul>
                 )}

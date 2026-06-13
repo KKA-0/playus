@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 
 interface LandingPageProps {
-  onStartPlaying: (selectedGame?: 'platformer' | 'shooter' | 'snake' | 'chained' | 'music' | null) => void;
+  onStartPlaying: (selectedGame?: 'platformer' | 'shooter' | 'snake' | 'chained' | 'music' | 'farm' | null) => void;
 }
 
 type SimulatorState = 'idle' | 'signaling' | 'handshake' | 'connected';
@@ -321,6 +321,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
               <h3 className="game-card-title">Co-op Music Sync</h3>
               <p className="game-card-desc">Sync and stream your favorite playlists together. Features synchronized playback triggers and real-time audio rooms.</p>
               <span className="game-card-players">Music Party Mode</span>
+            </div>
+          </div>
+
+          {/* Game 6: Farm Together */}
+          <div className="game-option-card farm" onClick={() => onStartPlaying('farm')}>
+            <div className="game-card-img">
+              <Gamepad2 className="game-card-icon" />
+            </div>
+            <div className="game-card-content">
+              <h3 className="game-card-title">Farm Together</h3>
+              <p className="game-card-desc">Choose a character and explore a cozy 2D farm together in a classic GBA-style top-down layout.</p>
+              <span className="game-card-players">Co-op Farm Exploration</span>
             </div>
           </div>
         </div>

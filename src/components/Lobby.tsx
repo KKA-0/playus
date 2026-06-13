@@ -269,6 +269,21 @@ export const Lobby: React.FC = () => {
                 <span className="game-card-players">Music Party Mode</span>
               </div>
             </div>
+
+            <div 
+              className={`game-option-card farm ${activeGame === 'farm' ? 'selected' : ''}`}
+              onClick={() => isHost && selectGame('farm')}
+              style={{ pointerEvents: isHost ? 'auto' : 'none' }}
+            >
+              <div className="game-card-img">
+                <Gamepad2 className="game-card-icon" />
+              </div>
+              <div className="game-card-content">
+                <h3 className="game-card-title">Farm Together</h3>
+                <p className="game-card-desc">Choose a character and explore a cozy 2D farm together in a classic GBA-style top-down layout.</p>
+                <span className="game-card-players">Co-op Farm Exploration</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -285,6 +300,7 @@ export const Lobby: React.FC = () => {
                 {activeGame === 'snake' && 'Cyber Slither (Snake Arena)'}
                 {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
                 {activeGame === 'music' && 'Co-op Music Sync (Music Room)'}
+                {activeGame === 'farm' && 'Farm Together (Top-Down GBA)'}
                 {!activeGame && 'No Game Selected'}
               </span>
             </div>
