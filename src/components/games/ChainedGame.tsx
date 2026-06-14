@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
-import { Shield, Flag, Award, Maximize, Minimize } from 'lucide-react';
+import { Shield, Flag, Award, Maximize, Minimize, Volume2, VolumeX } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
-const GRAVITY = 1;
+const GRAVITY = 0.5;
 const WALK_SPEED = 8;
 const JUMP_FORCE = -10.5;
 
@@ -116,6 +116,10 @@ export const ChainedGame: React.FC = () => {
   const [gameWon, setGameWon] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
+  // Audio state
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [volume, setVolume] = useState<number>(0.5);
+
   // Fullscreen change listeners
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -187,6 +191,57 @@ export const ChainedGame: React.FC = () => {
     femaleImg.src = '/female.png';
     femaleImageRef.current = femaleImg;
   }, []);
+
+  // Initialize background music
+  useEffect(() => {
+    const audio = new Audio('/music/chained.mp3');
+    audio.loop = true;
+    audio.volume = volume;
+
+    const handleEnded = () => {
+      audio.currentTime = 0;
+      audio.play().catch((err) => {
+        console.warn('Audio loop replay blocked:', err);
+      });
+    };
+
+    audio.addEventListener('ended', handleEnded);
+    audioRef.current = audio;
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.removeEventListener('ended', handleEnded);
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Sync volume level
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVol = parseFloat(e.target.value);
+    setVolume(newVol);
+    if (audioRef.current) {
+      audioRef.current.volume = newVol;
+    }
+  };
+
+  // Play music when connected and active
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isConnected && !gameOver && !gameWon) {
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch((err) => {
+            console.warn('Audio play blocked or failed:', err);
+          });
+        }
+      } else {
+        if (!audioRef.current.paused) {
+          audioRef.current.pause();
+        }
+      }
+    }
+  }, [isConnected, gameOver, gameWon]);
 
   // Initialize controls and starting positions
   useEffect(() => {
@@ -819,6 +874,29 @@ export const ChainedGame: React.FC = () => {
           <div className="peer-badge" style={{ borderColor: 'var(--neon-purple)', color: 'var(--neon-purple)', gap: '0.4rem' }}>
             <Flag size={14} />
             <span>Target: Portal</span>
+          </div>
+
+          {/* Volume Control Widget */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.3rem 0.6rem' }}>
+            {volume === 0 ? <VolumeX size={14} className="text-muted" /> : <Volume2 size={14} style={{ color: 'var(--neon-purple)' }} />}
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={volume}
+              onChange={handleVolumeChange}
+              style={{
+                width: '70px',
+                height: '4px',
+                accentColor: 'var(--neon-purple)',
+                cursor: 'pointer',
+                background: 'rgba(255,255,255,0.1)'
+              }}
+            />
+            <span style={{ fontSize: '0.75rem', minWidth: '24px', textAlign: 'right', fontFamily: 'var(--font-display)', opacity: 0.8 }}>
+              {Math.round(volume * 100)}%
+            </span>
           </div>
 
           <button className="copy-btn" onClick={toggleFullscreen} style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
