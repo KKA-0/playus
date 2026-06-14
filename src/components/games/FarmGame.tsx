@@ -6,7 +6,7 @@ const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
 const MAP_WIDTH = 1200;
 const MAP_HEIGHT = 800;
-const PLAYER_SPEED = 3.5;
+const PLAYER_SPEED = 4.5;
 const SPRITE_SIZE = 48; // Display size of the player characters
 
 interface PlayerState {
@@ -206,6 +206,15 @@ export const FarmGame: React.FC = () => {
   const femaleImageRef = useRef<HTMLImageElement | null>(null);
   const maleUpImageRef = useRef<HTMLImageElement | null>(null);
   const femaleUpImageRef = useRef<HTMLImageElement | null>(null);
+  const bedImageRef = useRef<HTMLImageElement | null>(null);
+  const sofaImageRef = useRef<HTMLImageElement | null>(null);
+  const chimneyGifRef = useRef<HTMLImageElement | null>(null);
+
+  const outdoorBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const indoorBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Keep track of canvas CSS dimensions to avoid getBoundingClientRect layout thrashing
+  const canvasRectRef = useRef<{ width: number; height: number }>({ width: 800, height: 480 });
 
   // Keyboard controls
   const keysRef = useRef<{ [key: string]: boolean }>({});
@@ -237,7 +246,7 @@ export const FarmGame: React.FC = () => {
   // Preload assets
   useEffect(() => {
     let loadedCount = 0;
-    const totalAssets = 4;
+    const totalAssets = 7;
 
     const onAssetLoad = () => {
       loadedCount++;
@@ -281,7 +290,254 @@ export const FarmGame: React.FC = () => {
       onAssetLoad(); // fall back gracefully
     };
     femaleUpImageRef.current = femaleUpImg;
+
+    const bedImg = new Image();
+    bedImg.src = '/bed.png';
+    bedImg.onload = onAssetLoad;
+    bedImg.onerror = (e) => {
+      console.error('Failed to load bed image asset', e);
+      onAssetLoad(); // fall back gracefully
+    };
+    bedImageRef.current = bedImg;
+
+    const sofaImg = new Image();
+    sofaImg.src = '/sofa.png';
+    sofaImg.onload = onAssetLoad;
+    sofaImg.onerror = (e) => {
+      console.error('Failed to load sofa image asset', e);
+      onAssetLoad(); // fall back gracefully
+    };
+    sofaImageRef.current = sofaImg;
+
+    const chimneyImg = new Image();
+    chimneyImg.src = '/chimni.gif';
+    chimneyImg.onload = onAssetLoad;
+    chimneyImg.onerror = (e) => {
+      console.error('Failed to load chimney image asset', e);
+      onAssetLoad(); // fall back gracefully
+    };
   }, []);
+
+  // Hide chimney gif overlay when selection is not complete
+  useEffect(() => {
+    if (!selectionComplete && chimneyGifRef.current) {
+      chimneyGifRef.current.style.display = 'none';
+    }
+  }, [selectionComplete]);
+
+  // Keep track of canvas CSS dimensions to avoid getBoundingClientRect layout thrashing
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        canvasRectRef.current = {
+          width: entry.contentRect.width || canvas.clientWidth || 800,
+          height: entry.contentRect.height || canvas.clientHeight || 480
+        };
+      }
+    });
+
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [assetsLoaded]);
+
+  // Create offscreen canvases once assets are loaded
+  useEffect(() => {
+    if (!assetsLoaded) return;
+
+    // 1. Create Outdoor Background Canvas
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = MAP_WIDTH;
+    outCanvas.height = MAP_HEIGHT;
+    const outCtx = outCanvas.getContext('2d');
+    if (outCtx) {
+      // Draw Grass Base
+      outCtx.fillStyle = '#2d6a4f';
+      outCtx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+      // Draw Grass Details
+      outCtx.fillStyle = '#40916c';
+      for (let tx = 0; tx < MAP_WIDTH; tx += 64) {
+        for (let ty = 0; ty < MAP_HEIGHT; ty += 64) {
+          if ((tx + ty) % 128 === 0) {
+            outCtx.fillRect(tx + 16, ty + 16, 4, 8);
+            outCtx.fillRect(tx + 20, ty + 20, 4, 12);
+            outCtx.fillRect(tx + 12, ty + 24, 4, 6);
+          } else if ((tx + ty) % 96 === 0) {
+            outCtx.fillRect(tx + 40, ty + 40, 4, 6);
+            outCtx.fillRect(tx + 44, ty + 36, 4, 10);
+          }
+        }
+      }
+
+      // Draw warm dirt path
+      outCtx.fillStyle = '#d8b18a';
+      outCtx.fillRect(480, 190, 40, 60);
+
+      // Draw Soil Plot
+      outCtx.fillStyle = '#5c4033';
+      outCtx.fillRect(350, 250, 300, 200);
+      outCtx.strokeStyle = '#3e2723';
+      outCtx.lineWidth = 6;
+      outCtx.strokeRect(350, 250, 300, 200);
+
+      // Draw tilled furrow lines
+      outCtx.strokeStyle = '#4e3629';
+      outCtx.lineWidth = 3;
+      for (let px = 380; px < 650; px += 30) {
+        outCtx.beginPath();
+        outCtx.moveTo(px, 255);
+        outCtx.lineTo(px, 445);
+        outCtx.stroke();
+      }
+
+      // Draw Farmhouse
+      outCtx.fillStyle = '#f5ebe0';
+      outCtx.fillRect(420, 120, 160, 70);
+
+      // Wall wood details
+      outCtx.fillStyle = '#d5c4b1';
+      outCtx.fillRect(420, 185, 160, 5);
+
+      // Roof (red tiled GBA polygon)
+      outCtx.fillStyle = '#e63946';
+      outCtx.beginPath();
+      outCtx.moveTo(410, 120);
+      outCtx.lineTo(430, 80);
+      outCtx.lineTo(570, 80);
+      outCtx.lineTo(590, 120);
+      outCtx.closePath();
+      outCtx.fill();
+
+      // Roof details
+      outCtx.strokeStyle = '#c1121f';
+      outCtx.lineWidth = 2;
+      outCtx.strokeRect(430, 80, 140, 40);
+      outCtx.beginPath();
+      outCtx.moveTo(465, 80); outCtx.lineTo(465, 120);
+      outCtx.moveTo(500, 80); outCtx.lineTo(500, 120);
+      outCtx.moveTo(535, 80); outCtx.lineTo(535, 120);
+      outCtx.stroke();
+
+      // Window (glowing cozy warm yellow)
+      outCtx.fillStyle = '#ffea00';
+      outCtx.fillRect(445, 140, 25, 20);
+      outCtx.strokeStyle = '#4e3629';
+      outCtx.lineWidth = 2;
+      outCtx.strokeRect(445, 140, 25, 20);
+      outCtx.beginPath();
+      outCtx.moveTo(457.5, 140); outCtx.lineTo(457.5, 160);
+      outCtx.moveTo(445, 150); outCtx.lineTo(470, 150);
+      outCtx.stroke();
+
+      // Door (dark brown wooden door)
+      outCtx.fillStyle = '#5c4033';
+      outCtx.fillRect(485, 150, 30, 40);
+      outCtx.strokeStyle = '#3e2723';
+      outCtx.strokeRect(485, 150, 30, 40);
+      // Door knob
+      outCtx.fillStyle = '#ffea00';
+      outCtx.beginPath();
+      outCtx.arc(510, 170, 2.5, 0, Math.PI * 2);
+      outCtx.fill();
+
+      // Fences and Decorative Elements
+      outCtx.fillStyle = '#8d6e63';
+      for (let fx = 100; fx < MAP_WIDTH - 100; fx += 120) {
+        if (fx < 320 || fx > 680) {
+          outCtx.fillRect(fx, 220, 6, 20);
+          outCtx.fillRect(fx + 40, 220, 6, 20);
+          outCtx.fillStyle = '#a1887f';
+          outCtx.fillRect(fx, 224, 46, 4);
+          outCtx.fillRect(fx, 232, 46, 4);
+          outCtx.fillStyle = '#8d6e63';
+        }
+      }
+
+      // Cozy Flowers
+      const drawFlower = (x: number, y: number, color: string) => {
+        outCtx.fillStyle = color;
+        outCtx.beginPath();
+        outCtx.arc(x, y, 4, 0, Math.PI * 2);
+        outCtx.fill();
+        outCtx.fillStyle = '#ffea00';
+        outCtx.fillRect(x - 1, y - 1, 2, 2);
+      };
+      drawFlower(200, 300, '#ff007f');
+      drawFlower(215, 290, '#00f0ff');
+      drawFlower(230, 310, '#ff007f');
+      drawFlower(800, 350, '#ffea00');
+      drawFlower(820, 365, '#e63946');
+      drawFlower(790, 380, '#9d4edd');
+    }
+    outdoorBgCanvasRef.current = outCanvas;
+
+    // 2. Create Indoor Background Canvas
+    const inCanvas = document.createElement('canvas');
+    inCanvas.width = CANVAS_WIDTH;
+    inCanvas.height = CANVAS_HEIGHT;
+    const inCtx = inCanvas.getContext('2d');
+    if (inCtx) {
+      // Cozy black margins
+      inCtx.fillStyle = '#090a10';
+      inCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      // Wooden floor
+      inCtx.fillStyle = '#b76e39';
+      inCtx.fillRect(180, 100, 440, 300);
+
+      // Floorboard lines
+      inCtx.strokeStyle = '#9c5a2b';
+      inCtx.lineWidth = 1.5;
+      for (let wy = 120; wy < 400; wy += 24) {
+        inCtx.beginPath();
+        inCtx.moveTo(180, wy);
+        inCtx.lineTo(620, wy);
+        inCtx.stroke();
+      }
+
+      // Stone walls
+      inCtx.fillStyle = '#546e7a';
+      inCtx.fillRect(170, 80, 460, 20);
+      inCtx.fillRect(170, 80, 10, 320);
+      inCtx.fillRect(620, 80, 10, 320);
+      inCtx.fillRect(170, 400, 200, 10);
+      inCtx.fillRect(430, 400, 200, 10);
+
+      // Exit sill
+      inCtx.fillStyle = '#8d6e63';
+      inCtx.fillRect(370, 400, 60, 10);
+
+      // Furniture
+      if (bedImageRef.current) {
+        inCtx.drawImage(bedImageRef.current, 175, 75, 140, 140);
+      } else {
+        inCtx.fillStyle = '#5c4033';
+        inCtx.fillRect(190, 100, 120, 110);
+        inCtx.fillStyle = '#eceff1';
+        inCtx.fillRect(198, 108, 104, 25);
+        inCtx.fillStyle = '#b30000';
+        inCtx.fillRect(190, 133, 120, 77);
+        inCtx.fillStyle = '#e60000';
+        inCtx.fillRect(190, 133, 120, 12);
+      }
+
+      if (sofaImageRef.current) {
+        inCtx.drawImage(sofaImageRef.current, 465, 235, 150, 100);
+      } else {
+        inCtx.fillStyle = '#0d47a1';
+        inCtx.fillRect(480, 250, 80, 15);
+        inCtx.fillStyle = '#1976d2';
+        inCtx.fillRect(480, 265, 80, 35);
+        inCtx.fillStyle = '#0d47a1';
+        inCtx.fillRect(472, 253, 10, 47);
+        inCtx.fillRect(558, 253, 10, 47);
+      }
+    }
+    indoorBgCanvasRef.current = inCanvas;
+  }, [assetsLoaded]);
 
   // Set up local keyboard listeners
   useEffect(() => {
@@ -438,14 +694,14 @@ export const FarmGame: React.FC = () => {
       // Floor borders
       if (x < fLeft || x > fRight || y < fTop || y > fBottom) return true;
 
-      // Sofa collision: x in [480, 560], y in [250, 310]
-      if (x > 480 - margin && x < 560 + margin && y > 250 - margin && y < 310 + margin) return true;
+      // Sofa collision: x in [470, 570], y in [240, 310]
+      if (x > 470 - margin && x < 570 + margin && y > 240 - margin && y < 310 + margin) return true;
 
-      // Bed collision: x in [220, 280], y in [120, 180]
-      if (x > 220 - margin && x < 280 + margin && y > 120 - margin && y < 180 + margin) return true;
+      // Bed collision: x in [190, 310], y in [100, 210]
+      if (x > 190 - margin && x < 310 + margin && y > 100 - margin && y < 210 + margin) return true;
 
-      // Campfire collision: x in [320, 380], y in [220, 280]
-      if (x > 320 - margin && x < 380 + margin && y > 220 - margin && y < 280 + margin) return true;
+      // Chimney collision: x in [368, 432], y in [100, 136]
+      if (x > 368 - margin && x < 432 + margin && y > 100 && y < 136 + margin) return true;
 
       return false;
     };
@@ -595,25 +851,6 @@ export const FarmGame: React.FC = () => {
         }
       }
 
-      // Update indoor campfire fire particles
-      if (p.inHouse) {
-        if (Math.random() < 0.28) {
-          const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.4;
-          const speed = 0.4 + Math.random() * 0.6;
-          const colors = ['#ff5722', '#ff9800', '#ffeb3b', '#ff3d00'];
-          fireParticlesRef.current.push({
-            x: 350 + (Math.random() - 0.5) * 12,
-            y: 250 + (Math.random() - 0.5) * 12,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-            size: 1.5 + Math.random() * 2,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            maxLife: 20 + Math.random() * 20,
-            life: 0
-          });
-        }
-      }
-
       // Tick particles
       smokeParticlesRef.current.forEach((part) => {
         part.x += part.vx;
@@ -657,12 +894,9 @@ export const FarmGame: React.FC = () => {
       const drawPlayer = (player: PlayerState, isMe: boolean) => {
         if (!player.gender) return;
 
-        let img: HTMLImageElement | null = null;
-        if (player.gender === 'male') {
-          img = player.facingUp ? maleUpImageRef.current : maleImageRef.current;
-        } else {
-          img = player.facingUp ? femaleUpImageRef.current : femaleImageRef.current;
-        }
+        const img = player.gender === 'male'
+          ? (player.facingUp ? maleUpImageRef.current : maleImageRef.current)
+          : (player.facingUp ? femaleUpImageRef.current : femaleImageRef.current);
         if (!img) return;
 
         ctx.save();
@@ -702,85 +936,70 @@ export const FarmGame: React.FC = () => {
 
       if (p1.inHouse) {
         // --- DRAW HOUSE INTERIOR ---
-        // 1. Draw cozy black margins
-        ctx.fillStyle = '#090a10';
-        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-        // 2. Draw wooden floor
-        ctx.fillStyle = '#b76e39';
-        ctx.fillRect(180, 100, 440, 300);
-
-        // Draw horizontal floorboard lines
-        ctx.strokeStyle = '#9c5a2b';
-        ctx.lineWidth = 1.5;
-        for (let wy = 120; wy < 400; wy += 24) {
-          ctx.beginPath();
-          ctx.moveTo(180, wy);
-          ctx.lineTo(620, wy);
-          ctx.stroke();
+        if (indoorBgCanvasRef.current) {
+          ctx.drawImage(indoorBgCanvasRef.current, 0, 0);
+        } else {
+          // Fallback if not cached yet
+          ctx.fillStyle = '#090a10';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.fillStyle = '#b76e39';
+          ctx.fillRect(180, 100, 440, 300);
+          ctx.strokeStyle = '#9c5a2b';
+          ctx.lineWidth = 1.5;
+          for (let wy = 120; wy < 400; wy += 24) {
+            ctx.beginPath();
+            ctx.moveTo(180, wy);
+            ctx.lineTo(620, wy);
+            ctx.stroke();
+          }
+          ctx.fillStyle = '#546e7a';
+          ctx.fillRect(170, 80, 460, 20);
+          ctx.fillRect(170, 80, 10, 320);
+          ctx.fillRect(620, 80, 10, 320);
+          ctx.fillRect(170, 400, 200, 10);
+          ctx.fillRect(430, 400, 200, 10);
+          ctx.fillStyle = '#8d6e63';
+          ctx.fillRect(370, 400, 60, 10);
+          if (bedImageRef.current) {
+            ctx.drawImage(bedImageRef.current, 175, 75, 140, 140);
+          }
+          if (sofaImageRef.current) {
+            ctx.drawImage(sofaImageRef.current, 465, 235, 150, 100);
+          }
         }
 
-        // 3. Draw stone walls
-        ctx.fillStyle = '#546e7a'; // slate blue walls
-        ctx.fillRect(170, 80, 460, 20); // top wall
-        ctx.fillRect(170, 80, 10, 320); // left wall
-        ctx.fillRect(620, 80, 10, 320); // right wall
-        ctx.fillRect(170, 400, 200, 10); // bottom left wall
-        ctx.fillRect(430, 400, 200, 10); // bottom right wall
+        // Position and display animated Chimney GIF inside the house
+        if (chimneyGifRef.current) {
+          const chimneyWidth = 64;
+          const chimneyHeight = 64;
+          const worldX = 400;
+          const worldY = 144; // bottom of chimney
 
-        // Exit doorway sill
-        ctx.fillStyle = '#8d6e63';
-        ctx.fillRect(370, 400, 60, 10);
+          const rect = canvasRectRef.current;
+          const cssScaleX = rect.width / canvas.width;
+          const cssScaleY = rect.height / canvas.height;
 
-        // 4. Draw Furniture
-        // Bed (top-left)
-        ctx.fillStyle = '#5c4033'; // frame
-        ctx.fillRect(220, 120, 60, 60);
-        ctx.fillStyle = '#eceff1'; // pillow
-        ctx.fillRect(225, 125, 50, 15);
-        ctx.fillStyle = '#b30000'; // red blanket
-        ctx.fillRect(220, 140, 60, 40);
-        ctx.fillStyle = '#e60000'; // fold
-        ctx.fillRect(220, 140, 60, 8);
+          // Inside the house, the viewport is fixed (no camera scroll)
+          const canvasX = (worldX - chimneyWidth / 2) * scale + offsetX;
+          const canvasY = (worldY - chimneyHeight) * scale + offsetY;
+          const canvasW = chimneyWidth * scale;
+          const canvasH = chimneyHeight * scale;
 
-        // Sofa (right side)
-        ctx.fillStyle = '#0d47a1'; // dark blue backrest
-        ctx.fillRect(480, 250, 80, 15);
-        ctx.fillStyle = '#1976d2'; // seat cushion
-        ctx.fillRect(480, 265, 80, 35);
-        ctx.fillStyle = '#0d47a1'; // arms
-        ctx.fillRect(472, 253, 10, 47);
-        ctx.fillRect(558, 253, 10, 47);
-
-        // Campfire (middle-left: center 350, 250)
-        ctx.fillStyle = '#78909c'; // ring of stones
-        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
-          ctx.beginPath();
-          ctx.arc(350 + Math.cos(a) * 20, 250 + Math.sin(a) * 20, 4, 0, Math.PI * 2);
-          ctx.fill();
+          chimneyGifRef.current.style.display = 'block';
+          chimneyGifRef.current.style.left = `${canvasX * cssScaleX}px`;
+          chimneyGifRef.current.style.top = `${canvasY * cssScaleY}px`;
+          chimneyGifRef.current.style.width = `${canvasW * cssScaleX}px`;
+          chimneyGifRef.current.style.height = `${canvasH * cssScaleY}px`;
         }
-        // Logs
-        ctx.fillStyle = '#5c4033';
-        ctx.save();
-        ctx.translate(350, 250);
-        ctx.rotate(Math.PI / 4);
-        ctx.fillRect(-12, -3, 24, 6);
-        ctx.rotate(Math.PI / 2);
-        ctx.fillRect(-12, -3, 24, 6);
-        ctx.restore();
 
-        // Fire particles
-        fireParticlesRef.current.forEach((part) => {
-          ctx.save();
-          ctx.globalAlpha = 1 - part.life / part.maxLife;
-          ctx.fillStyle = part.color;
-          ctx.shadowBlur = 6;
-          ctx.shadowColor = part.color;
-          ctx.beginPath();
-          ctx.arc(part.x, part.y, part.size, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        });
+        // Cozy fireplace glow inside the house
+        const gradFireplace = ctx.createRadialGradient(400, 120, 2, 400, 120, 90);
+        gradFireplace.addColorStop(0, 'rgba(255, 120, 0, 0.35)');
+        gradFireplace.addColorStop(1, 'rgba(255, 120, 0, 0)');
+        ctx.fillStyle = gradFireplace;
+        ctx.beginPath();
+        ctx.arc(400, 120, 90, 0, Math.PI * 2);
+        ctx.fill();
 
         // 5. Draw Y-Sorted Players in House (only draw remote if they are in the house too)
         if (p2.gender && p2.inHouse) {
@@ -795,16 +1014,8 @@ export const FarmGame: React.FC = () => {
           drawPlayer(p1, true);
         }
 
-        // 6. Cozy Campfire light glow and night shade inside the house
+        // 6. Night shade inside the house (no campfire glow)
         const clockInfo = getGameClock(elapsedTimeRef.current);
-        const gradCampfire = ctx.createRadialGradient(350, 250, 2, 350, 250, 110);
-        gradCampfire.addColorStop(0, 'rgba(255, 110, 0, 0.48)');
-        gradCampfire.addColorStop(1, 'rgba(255, 110, 0, 0)');
-        ctx.fillStyle = gradCampfire;
-        ctx.beginPath();
-        ctx.arc(350, 250, 110, 0, Math.PI * 2);
-        ctx.fill();
-
         if (clockInfo.isNight) {
           ctx.fillStyle = 'rgba(10, 14, 42, 0.22)'; // soft night shade inside house
           ctx.fillRect(180, 100, 440, 300);
@@ -821,112 +1032,22 @@ export const FarmGame: React.FC = () => {
         cameraX = Math.max(0, Math.min(MAP_WIDTH - CANVAS_WIDTH, cameraX));
         cameraY = Math.max(0, Math.min(MAP_HEIGHT - CANVAS_HEIGHT, cameraY));
 
-        // 1. Draw Map Background
-        ctx.fillStyle = '#2d6a4f'; // Rich grass base
-        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
         ctx.save();
         ctx.translate(-cameraX, -cameraY);
 
-        // Draw Grass Tiles/Texture detail
-        ctx.fillStyle = '#40916c'; // Lighter grass tufts
-        for (let tx = 0; tx < MAP_WIDTH; tx += 64) {
-          for (let ty = 0; ty < MAP_HEIGHT; ty += 64) {
-            // Draw small GBA pixel style grass shapes
-            if ((tx + ty) % 128 === 0) {
-              ctx.fillRect(tx + 16, ty + 16, 4, 8);
-              ctx.fillRect(tx + 20, ty + 20, 4, 12);
-              ctx.fillRect(tx + 12, ty + 24, 4, 6);
-            } else if ((tx + ty) % 96 === 0) {
-              ctx.fillRect(tx + 40, ty + 40, 4, 6);
-              ctx.fillRect(tx + 44, ty + 36, 4, 10);
-            }
-          }
+        // 1. Draw Map Background (Cached / Pre-rendered)
+        if (outdoorBgCanvasRef.current) {
+          ctx.drawImage(outdoorBgCanvasRef.current, 0, 0);
+        } else {
+          // Fallback if not cached yet
+          ctx.fillStyle = '#2d6a4f';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         }
 
-        // Draw warm dirt path leading from house to the plot
-        ctx.fillStyle = '#d8b18a'; // sand/beige path color
-        // Path from door (485, 190) down to plot top (around y = 250)
-        ctx.fillRect(480, 190, 40, 60);
-
-        // 2. Draw Soil Plot (Empty Crop Plot)
-        // Bounded at x in [350, 650], y in [250, 450]
-        ctx.fillStyle = '#5c4033'; // Deep brown tilled soil
-        ctx.fillRect(350, 250, 300, 200);
-
-        // Draw plot border logs
-        ctx.strokeStyle = '#3e2723';
-        ctx.lineWidth = 6;
-        ctx.strokeRect(350, 250, 300, 200);
-
-        // Draw tilled furrow lines inside plot (GBA grid style)
-        ctx.strokeStyle = '#4e3629';
-        ctx.lineWidth = 3;
-        for (let px = 380; px < 650; px += 30) {
-          ctx.beginPath();
-          ctx.moveTo(px, 255);
-          ctx.lineTo(px, 445);
-          ctx.stroke();
+        // Hide chimney GIF overlay when outdoors
+        if (chimneyGifRef.current) {
+          chimneyGifRef.current.style.display = 'none';
         }
-
-        // 3. Draw Farmhouse (Top of the plot)
-        // Bounding box dimensions: width 160, height 110, situated at x in [420, 580], y in [80, 190]
-        // Walls
-        ctx.fillStyle = '#f5ebe0'; // cream/beige walls
-        ctx.fillRect(420, 120, 160, 70);
-        
-        // Wall wood details
-        ctx.fillStyle = '#d5c4b1';
-        ctx.fillRect(420, 185, 160, 5);
-        
-        // Roof (red tiled GBA polygon)
-        ctx.fillStyle = '#e63946'; // Vibrant classic red roof
-        ctx.beginPath();
-        ctx.moveTo(410, 120);
-        ctx.lineTo(430, 80);
-        ctx.lineTo(570, 80);
-        ctx.lineTo(590, 120);
-        ctx.closePath();
-        ctx.fill();
-
-        // Roof details (tiled texture)
-        ctx.strokeStyle = '#c1121f';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(430, 80, 140, 40);
-        ctx.beginPath();
-        ctx.moveTo(465, 80); ctx.lineTo(465, 120);
-        ctx.moveTo(500, 80); ctx.lineTo(500, 120);
-        ctx.moveTo(535, 80); ctx.lineTo(535, 120);
-        ctx.stroke();
-
-        // Chimney
-        ctx.fillStyle = '#4a4e69'; // slate blue/gray chimney
-        ctx.fillRect(550, 70, 20, 30);
-        ctx.fillStyle = '#22223b';
-        ctx.fillRect(548, 67, 24, 4);
-
-        // Window (glowing cozy warm yellow)
-        ctx.fillStyle = '#ffea00';
-        ctx.fillRect(445, 140, 25, 20);
-        ctx.strokeStyle = '#4e3629';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(445, 140, 25, 20);
-        // Window panes
-        ctx.beginPath();
-        ctx.moveTo(457.5, 140); ctx.lineTo(457.5, 160);
-        ctx.moveTo(445, 150); ctx.lineTo(470, 150);
-        ctx.stroke();
-
-        // Door (dark brown wooden door)
-        ctx.fillStyle = '#5c4033';
-        ctx.fillRect(485, 150, 30, 40);
-        ctx.strokeStyle = '#3e2723';
-        ctx.strokeRect(485, 150, 30, 40);
-        // Door knob
-        ctx.fillStyle = '#ffea00';
-        ctx.beginPath();
-        ctx.arc(510, 170, 2.5, 0, Math.PI * 2);
-        ctx.fill();
 
         // 4. Draw Chimney Smoke Particles
         ctx.fillStyle = 'rgba(230, 230, 230, 0.4)';
@@ -938,38 +1059,6 @@ export const FarmGame: React.FC = () => {
           ctx.fill();
           ctx.restore();
         });
-
-        // 5. Draw Fences and Decorative Elements
-        ctx.fillStyle = '#8d6e63'; // brown posts
-        for (let fx = 100; fx < MAP_WIDTH - 100; fx += 120) {
-          if (fx < 320 || fx > 680) { // Keep space around plot & house clear
-            ctx.fillRect(fx, 220, 6, 20);
-            ctx.fillRect(fx + 40, 220, 6, 20);
-            // Horizontal slats
-            ctx.fillStyle = '#a1887f';
-            ctx.fillRect(fx, 224, 46, 4);
-            ctx.fillRect(fx, 232, 46, 4);
-            ctx.fillStyle = '#8d6e63';
-          }
-        }
-
-        // Draw Cozy Flowers (GBA color spots)
-        const drawFlower = (x: number, y: number, color: string) => {
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.arc(x, y, 4, 0, Math.PI * 2); // Center
-          ctx.fill();
-          ctx.fillStyle = '#ffea00';
-          ctx.fillRect(x - 1, y - 1, 2, 2);
-        };
-
-        drawFlower(200, 300, '#ff007f');
-        drawFlower(215, 290, '#00f0ff');
-        drawFlower(230, 310, '#ff007f');
-
-        drawFlower(800, 350, '#ffea00');
-        drawFlower(820, 365, '#e63946');
-        drawFlower(790, 380, '#9d4edd');
 
         // 6. Draw Y-Sorted Players Outdoors (only draw remote if they are outdoors too)
         if (p2.gender && !p2.inHouse) {
@@ -995,7 +1084,7 @@ export const FarmGame: React.FC = () => {
           const isNight = clockInfo.isNight;
           const cycleSeconds = clockInfo.cycleSeconds;
           const intensity = isNight ? 0.35 : 0.2 * ((cycleSeconds - 1320) / 180);
-          
+
           // Farmhouse window glow
           const gradWindow = ctx.createRadialGradient(457, 150, 2, 457, 150, 40);
           gradWindow.addColorStop(0, `rgba(255, 234, 0, ${intensity * 1.5})`);
@@ -1136,20 +1225,20 @@ export const FarmGame: React.FC = () => {
           {/* Volume Control Widget */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.3rem 0.6rem' }}>
             {volume === 0 ? <VolumeX size={14} className="text-muted" /> : <Volume2 size={14} style={{ color: 'var(--neon-yellow)' }} />}
-            <input 
-              type="range" 
-              min="0" 
-              max="1" 
-              step="0.05" 
-              value={volume} 
-              onChange={handleVolumeChange} 
-              style={{ 
-                width: '70px', 
-                height: '4px', 
-                accentColor: 'var(--neon-yellow)', 
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={volume}
+              onChange={handleVolumeChange}
+              style={{
+                width: '70px',
+                height: '4px',
+                accentColor: 'var(--neon-yellow)',
                 cursor: 'pointer',
                 background: 'rgba(255,255,255,0.1)'
-              }} 
+              }}
             />
             <span style={{ fontSize: '0.75rem', minWidth: '24px', textAlign: 'right', fontFamily: 'var(--font-display)', opacity: 0.8 }}>
               {Math.round(volume * 100)}%
@@ -1173,6 +1262,20 @@ export const FarmGame: React.FC = () => {
       <div className="canvas-container" style={{ position: 'relative' }}>
         <canvas ref={canvasRef} width={isFullscreen ? 1920 : CANVAS_WIDTH} height={isFullscreen ? 1080 : CANVAS_HEIGHT} />
 
+        {/* Animated Chimney GIF overlay */}
+        <img
+          ref={chimneyGifRef}
+          src="/chimni.gif"
+          alt="Chimney"
+          style={{
+            position: 'absolute',
+            display: 'none',
+            imageRendering: 'pixelated',
+            pointerEvents: 'none',
+            zIndex: 5,
+          }}
+        />
+
         {/* Character Selection Screen Overlay */}
         {!selectionComplete && (
           <div className="canvas-overlay">
@@ -1183,7 +1286,7 @@ export const FarmGame: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
               {/* Male option card */}
-              <div 
+              <div
                 className={`game-option-card farm ${localGender === 'male' ? 'selected' : ''}`}
                 onClick={() => setLocalGender('male')}
                 style={{ width: '180px', padding: '1rem', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
@@ -1196,7 +1299,7 @@ export const FarmGame: React.FC = () => {
               </div>
 
               {/* Female option card */}
-              <div 
+              <div
                 className={`game-option-card farm ${localGender === 'female' ? 'selected' : ''}`}
                 onClick={() => setLocalGender('female')}
                 style={{ width: '180px', padding: '1rem', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}

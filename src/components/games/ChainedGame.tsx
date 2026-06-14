@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
-import { Shield, Flag, Award } from 'lucide-react';
+import { Shield, Flag, Award, Maximize, Minimize } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
-const GRAVITY = 0.5;
-const WALK_SPEED = 3.6;
+const GRAVITY = 1;
+const WALK_SPEED = 8;
 const JUMP_FORCE = -10.5;
 
 const MAX_CHAIN_LENGTH = 140; // Max distance players can move apart
@@ -114,6 +114,33 @@ export const ChainedGame: React.FC = () => {
   const [activeCheckpoint, setActiveCheckpoint] = useState<number>(0);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [gameWon, setGameWon] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // Fullscreen change listeners
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    const container = canvasRef.current?.parentElement;
+    if (!container) return;
+
+    if (!document.fullscreenElement) {
+      container.requestFullscreen().catch((err) => {
+        console.error('Error attempting to enable fullscreen:', err);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   // Controls input refs
   const keysRef = useRef<{ [key: string]: boolean }>({});
@@ -144,6 +171,22 @@ export const ChainedGame: React.FC = () => {
   // Entity visual effects
   const particlesRef = useRef<Particle[]>([]);
   const currentCheckpointRef = useRef<number>(0);
+
+  // Preloaded GBA sprites from FarmGame
+  const maleImageRef = useRef<HTMLImageElement | null>(null);
+  const femaleImageRef = useRef<HTMLImageElement | null>(null);
+  const p1FacingLeftRef = useRef<boolean>(false);
+  const p2FacingLeftRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const maleImg = new Image();
+    maleImg.src = '/male.png';
+    maleImageRef.current = maleImg;
+
+    const femaleImg = new Image();
+    femaleImg.src = '/female.png';
+    femaleImageRef.current = femaleImg;
+  }, []);
 
   // Initialize controls and starting positions
   useEffect(() => {
@@ -372,6 +415,13 @@ export const ChainedGame: React.FC = () => {
       const p2 = isHost ? remotePlayerRef.current : localPlayerRef.current;
       const local = localPlayerRef.current;
 
+      // Track facing directions
+      if (p1.vx < 0) p1FacingLeftRef.current = true;
+      else if (p1.vx > 0) p1FacingLeftRef.current = false;
+
+      if (p2.vx < 0) p2FacingLeftRef.current = true;
+      else if (p2.vx > 0) p2FacingLeftRef.current = false;
+
       // --- LOCAL MOVEMENT ---
       local.vx = 0;
       if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) {
@@ -518,6 +568,20 @@ export const ChainedGame: React.FC = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
+      const currentWidth = canvas.width;
+      const currentHeight = canvas.height;
+      const scale = Math.min(currentWidth / CANVAS_WIDTH, currentHeight / CANVAS_HEIGHT);
+      const offsetX = (currentWidth - CANVAS_WIDTH * scale) / 2;
+      const offsetY = (currentHeight - CANVAS_HEIGHT * scale) / 2;
+
+      // Black background for letterbox borders
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, currentWidth, currentHeight);
+
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+
       const p1 = isHost ? localPlayerRef.current : remotePlayerRef.current;
       const p2 = isHost ? remotePlayerRef.current : localPlayerRef.current;
 
@@ -651,38 +715,63 @@ export const ChainedGame: React.FC = () => {
       }
 
       // 7. Draw Players
-      const drawSpacesuitPlayer = (p: PlayerState, baseColor: string, accentColor: string, label: string) => {
-        ctx.save();
-        ctx.translate(p.x + p.width / 2, p.y + p.height / 2);
+      const drawCharacterPlayer = (p: PlayerState, baseColor: string, accentColor: string, label: string, isMale: boolean) => {
+        const img = isMale ? maleImageRef.current : femaleImageRef.current;
+        const imgLoaded = img && img.complete && img.naturalWidth > 0;
 
-        // Visor/Dome glow
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = accentColor;
+        if (imgLoaded) {
+          ctx.save();
+          // Translate to center-bottom of the player box
+          ctx.translate(p.x + p.width / 2, p.y + p.height);
 
-        // Body suit
-        ctx.fillStyle = baseColor;
-        ctx.fillRect(-p.width / 2, -p.height / 2 + 10, p.width, p.height - 18);
+          const facingLeft = isMale ? p1FacingLeftRef.current : p2FacingLeftRef.current;
+          if (facingLeft) {
+            ctx.scale(-1, 1);
+          }
 
-        // Helmet Dome
-        ctx.fillStyle = '#1e293b';
-        ctx.beginPath();
-        ctx.arc(0, -p.height / 2 + 10, 11, Math.PI, 0);
-        ctx.fill();
-        ctx.strokeStyle = baseColor;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
+          // Draw the character sprite centered horizontally and aligned to feet at the bottom
+          ctx.drawImage(
+            img,
+            -24,      // half of 48 width
+            -48 + 4,  // align feet pivot (48 height)
+            48,
+            48
+          );
+          ctx.restore();
+        } else {
+          // Fallback to classic spacesuit player
+          ctx.save();
+          ctx.translate(p.x + p.width / 2, p.y + p.height / 2);
 
-        // Visor glass
-        ctx.fillStyle = accentColor;
-        ctx.fillRect(-4, -p.height / 2 + 4, 8, 5);
+          // Visor/Dome glow
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = accentColor;
 
-        // Legs
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(-8, p.height / 2 - 8, 4, 8);
-        ctx.fillRect(4, p.height / 2 - 8, 4, 8);
+          // Body suit
+          ctx.fillStyle = baseColor;
+          ctx.fillRect(-p.width / 2, -p.height / 2 + 10, p.width, p.height - 18);
 
-        ctx.restore();
+          // Helmet Dome
+          ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.arc(0, -p.height / 2 + 10, 11, Math.PI, 0);
+          ctx.fill();
+          ctx.strokeStyle = baseColor;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          // Visor glass
+          ctx.fillStyle = accentColor;
+          ctx.fillRect(-4, -p.height / 2 + 4, 8, 5);
+
+          // Legs
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-8, p.height / 2 - 8, 4, 8);
+          ctx.fillRect(4, p.height / 2 - 8, 4, 8);
+
+          ctx.restore();
+        }
 
         // Label tag
         ctx.fillStyle = '#ffffff';
@@ -691,10 +780,11 @@ export const ChainedGame: React.FC = () => {
         ctx.fillText(label, p.x + p.width / 2, p.y - 12);
       };
 
-      drawSpacesuitPlayer(p1, '#00e1ff', 'rgba(0, 240, 255, 0.85)', isHost ? 'YOU' : 'P1');
-      drawSpacesuitPlayer(p2, '#ff00a0', 'rgba(255, 0, 127, 0.85)', !isHost ? 'YOU' : 'P2');
+      drawCharacterPlayer(p1, '#00e1ff', 'rgba(0, 240, 255, 0.85)', isHost ? 'YOU' : 'P1', true);
+      drawCharacterPlayer(p2, '#ff00a0', 'rgba(255, 0, 127, 0.85)', !isHost ? 'YOU' : 'P2', false);
 
-      ctx.restore();
+      ctx.restore(); // Restores camera translate
+      ctx.restore(); // Restores scale & offset
     };
 
     const gameLoop = () => {
@@ -720,7 +810,7 @@ export const ChainedGame: React.FC = () => {
           HEIGHTS CLIMB: <span className="text-purple">TOWER ASCENT</span>
         </h2>
 
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginLeft: 'auto' }}>
           <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)', gap: '0.4rem' }}>
             <Shield size={14} />
             <span>{CHECKPOINTS[activeCheckpoint]?.label || 'BASE CAMP'}</span>
@@ -730,12 +820,17 @@ export const ChainedGame: React.FC = () => {
             <Flag size={14} />
             <span>Target: Portal</span>
           </div>
+
+          <button className="copy-btn" onClick={toggleFullscreen} style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+            <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+          </button>
         </div>
       </div>
 
       {/* Canvas Area */}
       <div className="canvas-container" style={{ position: 'relative' }}>
-        <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
+        <canvas ref={canvasRef} width={isFullscreen ? 1920 : CANVAS_WIDTH} height={isFullscreen ? 1080 : CANVAS_HEIGHT} />
 
         {/* Victory Screen Overlay */}
         {gameWon && (
