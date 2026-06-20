@@ -17,6 +17,7 @@ interface PlayerState {
   isMoving: boolean;
   inHouse: boolean;
   facingUp: boolean;
+  inventory: (string | null)[];
 }
 
 interface SmokeParticle {
@@ -110,7 +111,13 @@ export const FarmGame: React.FC = () => {
 
   // Game clock states
   const elapsedTimeRef = useRef<number>(0);
-  const [clockText, setClockText] = useState<string>('06:00 AM');
+
+  // Inventory selection state
+  const [selectedSlot, setSelectedSlot] = useState<number>(0);
+  const selectedSlotRef = useRef<number>(0);
+  useEffect(() => {
+    selectedSlotRef.current = selectedSlot;
+  }, [selectedSlot]);
 
   // Audio state
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -227,7 +234,8 @@ export const FarmGame: React.FC = () => {
     facingLeft: false,
     isMoving: false,
     inHouse: false,
-    facingUp: false
+    facingUp: false,
+    inventory: [null, null, null]
   });
 
   const remotePlayerRef = useRef<PlayerState>({
@@ -237,7 +245,8 @@ export const FarmGame: React.FC = () => {
     facingLeft: false,
     isMoving: false,
     inHouse: false,
-    facingUp: false
+    facingUp: false,
+    inventory: [null, null, null]
   });
 
   const smokeParticlesRef = useRef<SmokeParticle[]>([]);
@@ -542,10 +551,29 @@ export const FarmGame: React.FC = () => {
   // Set up local keyboard listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keypresses if user is typing in a chat input or other text field
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
         e.preventDefault();
       }
       keysRef.current[e.key] = true;
+
+      if (e.key === '1') {
+        setSelectedSlot(0);
+      } else if (e.key === '2') {
+        setSelectedSlot(1);
+      } else if (e.key === '3') {
+        setSelectedSlot(2);
+      }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -576,6 +604,9 @@ export const FarmGame: React.FC = () => {
         remotePlayerRef.current.gender = gameData.player.gender;
         remotePlayerRef.current.inHouse = gameData.player.inHouse;
         remotePlayerRef.current.facingUp = gameData.player.facingUp;
+        if (gameData.player.inventory) {
+          remotePlayerRef.current.inventory = gameData.player.inventory;
+        }
       }
       if (!isHost && gameData.elapsedTime !== undefined) {
         elapsedTimeRef.current = gameData.elapsedTime;
@@ -618,6 +649,7 @@ export const FarmGame: React.FC = () => {
     setLocalGender(null);
     setRemoteGender(null);
     setSelectionComplete(false);
+    setSelectedSlot(0);
     localPlayerRef.current = {
       x: isHost ? 480 : 520,
       y: 350,
@@ -625,7 +657,8 @@ export const FarmGame: React.FC = () => {
       facingLeft: false,
       isMoving: false,
       inHouse: false,
-      facingUp: false
+      facingUp: false,
+      inventory: [null, null, null]
     };
     remotePlayerRef.current = {
       x: isHost ? 520 : 480,
@@ -634,12 +667,12 @@ export const FarmGame: React.FC = () => {
       facingLeft: false,
       isMoving: false,
       inHouse: false,
-      facingUp: false
+      facingUp: false,
+      inventory: [null, null, null]
     };
     smokeParticlesRef.current = [];
     fireParticlesRef.current = [];
     elapsedTimeRef.current = 0;
-    setClockText('06:00 AM');
   };
 
   const triggerRestart = () => {
@@ -659,12 +692,14 @@ export const FarmGame: React.FC = () => {
     localPlayerRef.current.gender = localGender;
     localPlayerRef.current.inHouse = false;
     localPlayerRef.current.facingUp = false;
+    localPlayerRef.current.inventory = [null, null, null];
 
     remotePlayerRef.current.x = isHost ? 520 : 480;
     remotePlayerRef.current.y = 350;
     remotePlayerRef.current.gender = remoteGender;
     remotePlayerRef.current.inHouse = false;
     remotePlayerRef.current.facingUp = false;
+    remotePlayerRef.current.inventory = [null, null, null];
 
     let animationId: number;
 
@@ -749,7 +784,7 @@ export const FarmGame: React.FC = () => {
       if (!p.inHouse) {
         // --- OUTDOORS MOVEMENT ---
         // Enter house door trigger: door is at y=190, x in [480, 520]
-        if (nextY < 195 && nextX >= 480 && nextX <= 520) {
+        if (nextY < 206 && p.y >= 195 && nextX >= 480 && nextX <= 520) {
           p.inHouse = true;
           p.x = 400; // spawn inside house
           p.y = 370;
@@ -793,14 +828,13 @@ export const FarmGame: React.FC = () => {
           isMoving: p.isMoving,
           gender: p.gender,
           inHouse: p.inHouse,
-          facingUp: p.facingUp
+          facingUp: p.facingUp,
+          inventory: p.inventory
         },
         elapsedTime: elapsedTimeRef.current
       });
 
-      // Update React state clock text to trigger header redraw
-      const { timeStr } = getGameClock(elapsedTimeRef.current);
-      setClockText((prev) => (prev !== timeStr ? timeStr : prev));
+
 
       // Play music if local player is standing on the crop plot (x: [350, 650], y: [250, 450]) outdoors
       const isOnPlot = !p.inHouse && p.x >= 350 && p.x <= 650 && p.y >= 250 && p.y <= 450;
@@ -1166,6 +1200,60 @@ export const FarmGame: React.FC = () => {
       ctx.textBaseline = 'middle';
       ctx.fillText(clockInfo.timeStr, 688, 34);
 
+      // Draw Retro GBA Inventory HUD in bottom middle (virtual screen space)
+      const hudW = 140;
+      const hudH = 44;
+      const hudX = (CANVAS_WIDTH - hudW) / 2;
+      const hudY = CANVAS_HEIGHT - hudH - 15;
+
+      ctx.fillStyle = 'rgba(11, 12, 21, 0.85)';
+      ctx.strokeStyle = 'rgba(255, 234, 0, 0.25)'; // matching retro neon yellow
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(hudX, hudY, hudW, hudH, 8);
+      } else {
+        ctx.rect(hudX, hudY, hudW, hudH);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Draw the 3 inventory slots
+      const slotSize = 30;
+      const slotGap = 8;
+      const totalSlotsWidth = 3 * slotSize + 2 * slotGap;
+      const startSlotX = hudX + (hudW - totalSlotsWidth) / 2;
+      const slotY = hudY + (hudH - slotSize) / 2;
+
+      const curSelected = selectedSlotRef.current;
+      for (let i = 0; i < 3; i++) {
+        const sx = startSlotX + i * (slotSize + slotGap);
+
+        // Slot background
+        ctx.fillStyle = 'rgba(20, 22, 37, 0.9)';
+
+        // Use gold outline and glow if this slot is selected
+        const isSelected = i === curSelected;
+        ctx.strokeStyle = isSelected ? 'rgba(255, 234, 0, 0.95)' : 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = isSelected ? 2 : 1;
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(sx, slotY, slotSize, slotSize, 4);
+        } else {
+          ctx.rect(sx, slotY, slotSize, slotSize);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw hotkey number (1, 2, 3) in top-left corner of slot
+        ctx.fillStyle = isSelected ? 'rgba(255, 234, 0, 0.8)' : 'rgba(255, 255, 255, 0.35)';
+        ctx.font = '7px Orbitron';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(String(i + 1), sx + 3, slotY + 3);
+      }
+
       ctx.restore(); // Restores viewport scale & letterbox offset
     };
 
@@ -1218,9 +1306,6 @@ export const FarmGame: React.FC = () => {
           FARM TOGETHER: <span className="text-yellow">CO-OP SANDBOX</span>
         </h2>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginLeft: 'auto' }}>
-          <span className="peer-badge" style={{ borderColor: 'var(--neon-yellow)', color: 'var(--neon-yellow)', fontWeight: 'bold', fontFamily: 'var(--font-display)', fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}>
-            {clockText}
-          </span>
 
           {/* Volume Control Widget */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.3rem 0.6rem' }}>
@@ -1247,7 +1332,7 @@ export const FarmGame: React.FC = () => {
 
           <button className="copy-btn" onClick={toggleFullscreen} style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
-            <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen (1080p)'}</span>
+            <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
           </button>
           <button className="copy-btn" onClick={triggerRestart} style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>
             Choose Characters

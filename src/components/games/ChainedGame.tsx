@@ -275,6 +275,17 @@ export const ChainedGame: React.FC = () => {
     particlesRef.current = [];
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keypresses if user is typing in a chat input or other text field
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
         e.preventDefault();
       }
