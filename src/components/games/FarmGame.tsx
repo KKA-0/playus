@@ -654,13 +654,13 @@ export const FarmGame: React.FC = () => {
           // 3. Check weed plucking
           let closestWeed: Weed | null = null;
           let minWeedDist = 25;
-          weedsRef.current.forEach((weed) => {
+          for (const weed of weedsRef.current) {
             const dist = Math.hypot(p.x - weed.x, p.y - weed.y);
             if (dist < minWeedDist) {
               minWeedDist = dist;
               closestWeed = weed;
             }
-          });
+          }
 
           if (closestWeed) {
             spawnPluckParticles(closestWeed.x, closestWeed.y);
@@ -1625,13 +1625,13 @@ export const FarmGame: React.FC = () => {
             // Check weed proximity
             let closestWeed: Weed | null = null;
             let minWeedDist = 25;
-            weedsRef.current.forEach((weed) => {
+            for (const weed of weedsRef.current) {
               const dist = Math.hypot(p1.x - weed.x, p1.y - weed.y);
               if (dist < minWeedDist) {
                 minWeedDist = dist;
                 closestWeed = weed;
               }
-            });
+            }
 
             if (closestWeed) {
               drawTooltip(ctx, 'WILD WEED', 'Press [E] to Clean', closestWeed.x, closestWeed.y - 10);
