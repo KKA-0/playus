@@ -6,7 +6,7 @@ import confetti from 'canvas-confetti';
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 480;
 const GRAVITY = 0.5;
-const WALK_SPEED = 8;
+const WALK_SPEED = 6;
 const JUMP_FORCE = -10.5;
 
 const MAX_CHAIN_LENGTH = 140; // Max distance players can move apart
@@ -32,6 +32,8 @@ interface Platform {
   isCheckpoint?: boolean;
   checkpointLabel?: string;
   checkpointId?: number;
+  isPuzzleHint?: boolean;
+  hintText?: string;
 }
 
 interface Particle {
@@ -62,15 +64,16 @@ const PLATFORMS: Platform[] = [
   { x: 200, y: -50, w: 400, h: 24, isCheckpoint: true, checkpointLabel: 'CAMP 2: RIFT BRIDGE', checkpointId: 1 },
 
   // Mid Slabs
-  { x: 100, y: -150, w: 160, h: 16 },
-  { x: 540, y: -150, w: 160, h: 16 },
-  { x: 320, y: -250, w: 160, h: 16 },
-  { x: 80, y: -350, w: 180, h: 16 },
-  { x: 540, y: -350, w: 180, h: 16 },
-  { x: 280, y: -450, w: 240, h: 16 },
-  { x: 100, y: -550, w: 160, h: 16 },
-  { x: 540, y: -550, w: 160, h: 16 },
-  { x: 300, y: -650, w: 200, h: 16 },
+  { x: 100, y: -150, w: 180, h: 16 },
+  { x: 520, y: -150, w: 180, h: 16 },
+  { x: 100, y: -250, w: 180, h: 16 },
+  { x: 520, y: -250, w: 180, h: 16 },
+  { x: 300, y: -370, w: 200, h: 16, isPuzzleHint: true, hintText: 'CO-OP STACK JUMP REQUIRED' },
+  { x: 100, y: -470, w: 180, h: 16 },
+  { x: 520, y: -470, w: 180, h: 16 },
+  { x: 300, y: -570, w: 200, h: 16 },
+  { x: 100, y: -670, w: 180, h: 16 },
+  { x: 520, y: -670, w: 180, h: 16 },
 
   // Camp 3 (Checkpoint Upper)
   { x: 150, y: -750, w: 500, h: 24, isCheckpoint: true, checkpointLabel: 'CAMP 3: HIGHLAND WATCHTOWER', checkpointId: 2 },
@@ -112,6 +115,7 @@ export const ChainedGame: React.FC = () => {
 
   // Game UI States
   const [activeCheckpoint, setActiveCheckpoint] = useState<number>(0);
+  const [startCamp, setStartCamp] = useState<number>(0);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [gameWon, setGameWon] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -176,6 +180,11 @@ export const ChainedGame: React.FC = () => {
   const particlesRef = useRef<Particle[]>([]);
   const currentCheckpointRef = useRef<number>(0);
 
+  // Remote player movement delta tracking for player-on-player riding
+  const remotePrevXRef = useRef<number>(440);
+  const remotePrevYRef = useRef<number>(390);
+  const isStandingOnRemoteRef = useRef<boolean>(false);
+
   // Preloaded GBA sprites from FarmGame
   const maleImageRef = useRef<HTMLImageElement | null>(null);
   const femaleImageRef = useRef<HTMLImageElement | null>(null);
@@ -226,6 +235,44 @@ export const ChainedGame: React.FC = () => {
     }
   };
 
+  const changeStartCamp = (idx: number) => {
+    if (!isHost) return;
+    setStartCamp(idx);
+    
+    // Update current checkpoint immediately
+    currentCheckpointRef.current = idx;
+    setActiveCheckpoint(idx);
+
+    // Teleport players
+    const cp = CHECKPOINTS[idx];
+    const p1 = localPlayerRef.current;
+    const p2 = remotePlayerRef.current;
+    
+    p1.x = isHost ? cp.p1.x : cp.p2.x;
+    p1.y = cp.p1.y;
+    p1.vx = 0;
+    p1.vy = 0;
+    p1.isJumping = false;
+    p1.grounded = false;
+
+    p2.x = isHost ? cp.p2.x : cp.p1.x;
+    p2.y = cp.p2.y;
+    p2.vx = 0;
+    p2.vy = 0;
+    p2.isJumping = false;
+    p2.grounded = false;
+
+    isStandingOnRemoteRef.current = false;
+    remotePrevXRef.current = p2.x;
+    remotePrevYRef.current = p2.y;
+
+    spawnParticles(p1.x + 12, p1.y + 16, 'var(--neon-green)', 20);
+    spawnParticles(p2.x + 12, p2.y + 16, 'var(--neon-green)', 20);
+
+    // Send event to client
+    sendGameEvent({ type: 'respawn_checkpoint', checkpointIdx: idx });
+  };
+
   // Play music when connected and active
   useEffect(() => {
     if (audioRef.current) {
@@ -267,6 +314,10 @@ export const ChainedGame: React.FC = () => {
       isJumping: false,
       grounded: false
     };
+
+    remotePrevXRef.current = isHost ? 440 : 320;
+    remotePrevYRef.current = 390;
+    isStandingOnRemoteRef.current = false;
 
     currentCheckpointRef.current = 0;
     setActiveCheckpoint(0);
@@ -321,6 +372,7 @@ export const ChainedGame: React.FC = () => {
       if (gameData.checkpointIdx !== undefined) {
         currentCheckpointRef.current = gameData.checkpointIdx;
         setActiveCheckpoint(gameData.checkpointIdx);
+        setStartCamp(gameData.checkpointIdx);
       }
       if (gameData.status) {
         setGameOver(gameData.status.gameOver);
@@ -346,6 +398,7 @@ export const ChainedGame: React.FC = () => {
       const idx = gameEvent.checkpointIdx;
       currentCheckpointRef.current = idx;
       setActiveCheckpoint(idx);
+      setStartCamp(idx);
 
       const spawnP1 = CHECKPOINTS[idx].p1;
       const spawnP2 = CHECKPOINTS[idx].p2;
@@ -364,6 +417,10 @@ export const ChainedGame: React.FC = () => {
       remote.vx = 0;
       remote.vy = 0;
       remote.isJumping = false;
+
+      isStandingOnRemoteRef.current = false;
+      remotePrevXRef.current = remote.x;
+      remotePrevYRef.current = remote.y;
 
       // Add respawn particles
       spawnParticles(local.x + 12, local.y + 16, 'var(--neon-green)', 20);
@@ -400,9 +457,10 @@ export const ChainedGame: React.FC = () => {
   };
 
   const handleRestartLocal = () => {
+    const cp = CHECKPOINTS[startCamp];
     localPlayerRef.current = {
-      x: isHost ? 320 : 440,
-      y: 390,
+      x: isHost ? cp.p1.x : cp.p2.x,
+      y: cp.p1.y,
       vx: 0,
       vy: 0,
       width: 24,
@@ -412,8 +470,8 @@ export const ChainedGame: React.FC = () => {
     };
 
     remotePlayerRef.current = {
-      x: isHost ? 440 : 320,
-      y: 390,
+      x: isHost ? cp.p2.x : cp.p1.x,
+      y: cp.p2.y,
       vx: 0,
       vy: 0,
       width: 24,
@@ -422,8 +480,12 @@ export const ChainedGame: React.FC = () => {
       grounded: false
     };
 
-    currentCheckpointRef.current = 0;
-    setActiveCheckpoint(0);
+    remotePrevXRef.current = isHost ? cp.p2.x : cp.p1.x;
+    remotePrevYRef.current = cp.p2.y;
+    isStandingOnRemoteRef.current = false;
+
+    currentCheckpointRef.current = startCamp;
+    setActiveCheckpoint(startCamp);
     setGameOver(false);
     setGameWon(false);
     particlesRef.current = [];
@@ -440,7 +502,7 @@ export const ChainedGame: React.FC = () => {
     let animationId: number;
 
     // Platform landing AABB check
-    const checkCollisions = (p: PlayerState) => {
+    const checkCollisions = (p: PlayerState, displacementY: number) => {
       let grounded = false;
 
       PLATFORMS.forEach((plat) => {
@@ -449,14 +511,14 @@ export const ChainedGame: React.FC = () => {
 
         if (overlapX && overlapY) {
           // Landing from top
-          if (p.vy > 0 && p.y + p.height - p.vy <= plat.y + 4) {
+          if (displacementY >= 0 && p.y + p.height - displacementY <= plat.y + 8) {
             p.y = plat.y - p.height;
             p.vy = 0;
             p.isJumping = false;
             grounded = true;
           }
           // Hitting ceiling from bottom
-          else if (p.vy < 0 && p.y - p.vy >= plat.y + plat.h - 4) {
+          else if (displacementY < 0 && p.y - displacementY >= plat.y + plat.h - 8) {
             p.y = plat.y + plat.h;
             p.vy = 0;
           }
@@ -488,13 +550,49 @@ export const ChainedGame: React.FC = () => {
       if (p2.vx < 0) p2FacingLeftRef.current = true;
       else if (p2.vx > 0) p2FacingLeftRef.current = false;
 
+      // --- SPRING CONSTRAINT CALCULATIONS (Based on positions at start of frame) ---
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.hypot(dx, dy);
+
+      let pullX = 0;
+      let pullY = 0;
+      let snapX = 0;
+      let snapY = 0;
+
+      if (dist > MAX_CHAIN_LENGTH) {
+        const pullForce = (dist - MAX_CHAIN_LENGTH) * SPRING_CONSTANT;
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        if (isHost) {
+          pullX = nx * pullForce;
+          pullY = ny * pullForce;
+        } else {
+          pullX = -nx * pullForce;
+          pullY = -ny * pullForce;
+        }
+
+        // Snap constraint (prevents infinite desync separation)
+        const overshoot = dist - POSITION_SNAP_THRESHOLD;
+        if (overshoot > 0) {
+          if (isHost) {
+            snapX = nx * overshoot * 0.5;
+            snapY = ny * overshoot * 0.5;
+          } else {
+            snapX = -nx * overshoot * 0.5;
+            snapY = -ny * overshoot * 0.5;
+          }
+        }
+      }
+
       // --- LOCAL MOVEMENT ---
-      local.vx = 0;
+      let inputVx = 0;
       if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) {
-        local.vx = -WALK_SPEED;
+        inputVx = -WALK_SPEED;
       }
       if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) {
-        local.vx = WALK_SPEED;
+        inputVx = WALK_SPEED;
       }
       if ((keysRef.current['w'] || keysRef.current['W'] || keysRef.current['ArrowUp'] || keysRef.current[' ']) && !local.isJumping && local.grounded) {
         local.vy = JUMP_FORCE;
@@ -506,50 +604,61 @@ export const ChainedGame: React.FC = () => {
       // Apply Gravity
       local.vy += GRAVITY;
 
-      // Collision checks - X movement
-      local.x += local.vx;
-      local.x = Math.max(10, Math.min(CANVAS_WIDTH - 10 - local.width, local.x));
+      // Calculate remote player movement delta
+      const remote = remotePlayerRef.current;
+      const remoteDeltaX = remote.x - remotePrevXRef.current;
+      const remoteDeltaY = remote.y - remotePrevYRef.current;
 
-      // Collision checks - Y movement
-      local.y += local.vy;
-      local.grounded = checkCollisions(local);
-      if (local.grounded) {
-        local.isJumping = false;
+      // Integrate velocities including keyboard movement, spring pulls, and snap corrections
+      // If the local player is grounded and standing still, they anchor themselves and resist chain pull
+      let finalPullX = pullX;
+      let finalPullY = pullY;
+      let finalSnapX = snapX;
+      let finalSnapY = snapY;
+
+      if (local.grounded && inputVx === 0) {
+        finalPullX = 0;
+        finalPullY = 0;
+        finalSnapX = 0;
+        finalSnapY = 0;
       }
 
-      // --- SPRING CONSTRAINT CALCULATIONS ---
-      // We calculate spring pulling force based on the distance between players
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const dist = Math.hypot(dx, dy);
+      local.vx = inputVx + finalPullX;
+      local.vy += finalPullY;
 
-      if (dist > MAX_CHAIN_LENGTH) {
-        const pullForce = (dist - MAX_CHAIN_LENGTH) * SPRING_CONSTANT;
-        const nx = dx / dist;
-        const ny = dy / dist;
+      // Update positions carrying the local player if they are standing on the remote player
+      const shiftX = isStandingOnRemoteRef.current ? remoteDeltaX : 0;
+      local.x += local.vx + finalSnapX + shiftX;
+      local.x = Math.max(10, Math.min(CANVAS_WIDTH - 10 - local.width, local.x));
 
-        // Apply spring pull to velocities
-        if (isHost) {
-          p1.vx += nx * pullForce;
-          p1.vy += ny * pullForce;
-        } else {
-          p2.vx -= nx * pullForce;
-          p2.vy -= ny * pullForce;
-        }
+      const shiftY = isStandingOnRemoteRef.current ? remoteDeltaY : 0;
+      const displacementY = local.vy + finalSnapY + shiftY;
+      local.y += displacementY;
 
-        // Snap constraint (prevents infinite desync separation)
-        const overshoot = dist - POSITION_SNAP_THRESHOLD;
-        if (overshoot > 0) {
-          const snapX = nx * overshoot * 0.5;
-          const snapY = ny * overshoot * 0.5;
+      // Check landing and ceiling collisions on platforms using total displacementY
+      local.grounded = checkCollisions(local, displacementY);
+      
+      if (local.grounded) {
+        local.isJumping = false;
+        isStandingOnRemoteRef.current = false;
+      } else {
+        // Check collision with remote player
+        const overlapX = local.x + local.width > remote.x && local.x < remote.x + remote.width;
+        const overlapY = local.y + local.height >= remote.y && local.y < remote.y + remote.height;
 
-          if (isHost) {
-            p1.x += snapX;
-            p1.y += snapY;
+        if (overlapX && overlapY) {
+          // Landing from top on the remote player
+          if (displacementY >= 0 && local.y + local.height - displacementY <= remote.y + 8) {
+            local.y = remote.y - local.height;
+            local.vy = 0;
+            local.isJumping = false;
+            local.grounded = true;
+            isStandingOnRemoteRef.current = true;
           } else {
-            p2.x -= snapX;
-            p2.y -= snapY;
+            isStandingOnRemoteRef.current = false;
           }
+        } else {
+          isStandingOnRemoteRef.current = false;
         }
       }
 
@@ -588,6 +697,9 @@ export const ChainedGame: React.FC = () => {
           const spawnP2 = activeCp.p2;
           p1.x = spawnP1.x; p1.y = spawnP1.y; p1.vx = 0; p1.vy = 0; p1.isJumping = false;
           p2.x = spawnP2.x; p2.y = spawnP2.y; p2.vx = 0; p2.vy = 0; p2.isJumping = false;
+          isStandingOnRemoteRef.current = false;
+          remotePrevXRef.current = remote.x;
+          remotePrevYRef.current = remote.y;
           spawnParticles(p1.x + 12, p1.y + 16, 'var(--neon-green)', 20);
           spawnParticles(p2.x + 12, p2.y + 16, 'var(--neon-green)', 20);
         }
@@ -625,6 +737,10 @@ export const ChainedGame: React.FC = () => {
           }
         });
       }
+
+      // Save remote position for next frame's delta calculation
+      remotePrevXRef.current = remote.x;
+      remotePrevYRef.current = remote.y;
     };
 
     // Rendering Engine
@@ -714,6 +830,29 @@ export const ChainedGame: React.FC = () => {
           ctx.strokeStyle = active ? 'var(--neon-green)' : 'rgba(255, 255, 255, 0.1)';
           ctx.lineWidth = 2;
           ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+        } else if (plat.isPuzzleHint) {
+          // Draw Neon Orange puzzle platform
+          ctx.fillStyle = 'rgba(255, 110, 0, 0.15)';
+          ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+          ctx.strokeStyle = '#ff6e00';
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+
+          // Draw hint text centered above the platform
+          ctx.fillStyle = '#ff6e00';
+          ctx.font = 'bold 8px Orbitron';
+          ctx.textAlign = 'center';
+          ctx.fillText(plat.hintText || '', plat.x + plat.w / 2, plat.y - 8);
+
+          // Subtle dashed guide line descending to help align the stack below it
+          ctx.strokeStyle = 'rgba(255, 110, 0, 0.2)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(plat.x + plat.w / 2, plat.y + plat.h);
+          ctx.lineTo(plat.x + plat.w / 2, plat.y + 130);
+          ctx.stroke();
+          ctx.setLineDash([]); // reset line dash
         } else {
           // Standard glass platforms
           ctx.fillStyle = 'rgba(22, 24, 44, 0.85)';
@@ -877,10 +1016,40 @@ export const ChainedGame: React.FC = () => {
         </h2>
 
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginLeft: 'auto' }}>
-          <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)', gap: '0.4rem' }}>
-            <Shield size={14} />
-            <span>{CHECKPOINTS[activeCheckpoint]?.label || 'BASE CAMP'}</span>
-          </div>
+          {isHost ? (
+            <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)', gap: '0.4rem', padding: '0.2rem 0.6rem', position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Shield size={14} />
+              <select
+                value={startCamp}
+                onChange={(e) => changeStartCamp(parseInt(e.target.value))}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--neon-green)',
+                  fontFamily: 'Orbitron, sans-serif',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  paddingRight: '12px',
+                  appearance: 'none',
+                  WebkitAppearance: 'none'
+                }}
+              >
+                {CHECKPOINTS.map((cp) => (
+                  <option key={cp.id} value={cp.id} style={{ background: '#0a0b10', color: '#fff' }}>
+                    {cp.label}
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: '0.6rem', marginLeft: '-8px', pointerEvents: 'none' }}>▼</span>
+            </div>
+          ) : (
+            <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)', gap: '0.4rem' }}>
+              <Shield size={14} />
+              <span>{CHECKPOINTS[activeCheckpoint]?.label || 'BASE CAMP'}</span>
+            </div>
+          )}
 
           <div className="peer-badge" style={{ borderColor: 'var(--neon-purple)', color: 'var(--neon-purple)', gap: '0.4rem' }}>
             <Flag size={14} />
