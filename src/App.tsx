@@ -6,7 +6,6 @@ import { PlatformerGame } from './components/games/PlatformerGame';
 import { TopDownGame } from './components/games/TopDownGame';
 import { SnakeGame } from './components/games/SnakeGame';
 import { ChainedGame } from './components/games/ChainedGame';
-import { MusicPlayerRoom } from './components/games/MusicPlayerRoom';
 import { FarmGame } from './components/games/FarmGame';
 import { 
   MessageSquare, ArrowRight, Gamepad, HelpCircle 
@@ -117,7 +116,6 @@ const AppContent: React.FC = () => {
               {activeGame === 'shooter' && <TopDownGame />}
               {activeGame === 'snake' && <SnakeGame />}
               {activeGame === 'chained' && <ChainedGame />}
-              {activeGame === 'music' && <MusicPlayerRoom />}
               {activeGame === 'farm' && <FarmGame />}
             </div>
 
@@ -205,21 +203,6 @@ const AppContent: React.FC = () => {
                     <li className="control-item">
                       <span className="control-label">Goal</span>
                       <span className="text-green">🏁 Exit Portal</span>
-                    </li>
-                  </ul>
-                ) : activeGame === 'music' ? (
-                  <ul className="controls-list">
-                    <li className="control-item">
-                      <span className="control-label">Music Service</span>
-                      <span className="control-key">Spotify / YT</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Timeline Seek</span>
-                      <span className="text-cyan">Auto-Synced ⚡</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Vibe Playlists</span>
-                      <span className="text-green">Curated Beat Cards</span>
                     </li>
                   </ul>
                 ) : (

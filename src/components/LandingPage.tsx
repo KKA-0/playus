@@ -1,11 +1,10 @@
-import React from 'react';
 import { 
   Gamepad2, Cpu, ShieldCheck, Activity, 
-  ArrowRight, Zap, Music 
+  ArrowRight, Zap
 } from 'lucide-react';
 
 interface LandingPageProps {
-  onStartPlaying: (selectedGame?: 'platformer' | 'shooter' | 'snake' | 'chained' | 'music' | 'farm' | null) => void;
+  onStartPlaying: (selectedGame?: 'platformer' | 'shooter' | 'snake' | 'chained' | 'farm' | null) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
@@ -142,17 +141,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
               <h3 className="game-card-title">Chained Together</h3>
               <p className="game-card-desc">Coordinate physics jumps and climbing maneuvers with your peer while tethered by a highly responsive physics spring chain.</p>
               <span className="game-card-players">Co-op physics climber</span>
-            </div>
-          </div>
-
-          <div className="game-option-card music" onClick={() => onStartPlaying('music')}>
-            <div className="game-card-img" style={{ backgroundImage: 'linear-gradient(135deg, #1db954, #191414)' }}>
-              <Music className="game-card-icon" style={{ opacity: 0.9 }} />
-            </div>
-            <div className="game-card-content">
-              <h3 className="game-card-title">Co-op Music Sync</h3>
-              <p className="game-card-desc">Sync and stream your favorite playlists together. Features synchronized playback triggers and real-time audio rooms.</p>
-              <span className="game-card-players">Music Party Mode</span>
             </div>
           </div>
 

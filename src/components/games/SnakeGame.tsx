@@ -1284,6 +1284,10 @@ export const SnakeGame: React.FC = () => {
             <Clock size={14} />
             <span>Time: {timeRemaining}s</span>
           </div>
+
+          <button className="glow-btn-magenta" onClick={stopGame} style={{ padding: '0.4rem 1.2rem', fontSize: '0.8rem' }}>
+            Exit Game
+          </button>
         </div>
       </div>
 

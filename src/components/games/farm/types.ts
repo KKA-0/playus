@@ -47,4 +47,20 @@ export interface Weed {
   id: string;
   x: number;
   y: number;
+  type?: number;
+}
+
+export interface ChickenState {
+  id: string;
+  x: number;
+  y: number;
+  startX: number;
+  startY: number;
+  vx: number;
+  vy: number;
+  direction: 'down' | 'left' | 'right' | 'up';
+  state: 'idle' | 'walking';
+  timer: number;
+  frameIndex: number;
+  animationTick: number;
 }

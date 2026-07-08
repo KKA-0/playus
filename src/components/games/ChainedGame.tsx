@@ -90,13 +90,13 @@ const PLATFORMS: Platform[] = [
   { x: 350, y: -1330, w: 100, h: 16 },
 
   // Exit portal platform
-  { x: 200, y: -1430, w: 400, h: 30 }
+  { x: 200, y: -1430, w: 400, h: 16 }
 ];
 
 const CHECKPOINTS = [
-  { id: 0, label: 'CAMP 1: BASE CAMP', y: 440, p1: { x: 320, y: 390 }, p2: { x: 440, y: 390 }, deathY: 530 },
-  { id: 1, label: 'CAMP 2: RIFT BRIDGE', y: -50, p1: { x: 320, y: -100 }, p2: { x: 440, y: -100 }, deathY: 130 },
-  { id: 2, label: 'CAMP 3: HIGHLAND WATCHTOWER', y: -750, p1: { x: 320, y: -800 }, p2: { x: 440, y: -800 }, deathY: -570 }
+  { id: 0, label: 'Padaav 1: We are going up', y: 440, p1: { x: 320, y: 390 }, p2: { x: 440, y: 390 }, deathY: 530 },
+  { id: 1, label: 'Padaav 2: Wont ever touch the ground..right?', y: -50, p1: { x: 320, y: -100 }, p2: { x: 440, y: -100 }, deathY: 130 },
+  { id: 2, label: 'Padaav 3: Togather we are stronger!', y: -750, p1: { x: 320, y: -800 }, p2: { x: 440, y: -800 }, deathY: -570 }
 ];
 
 export const ChainedGame: React.FC = () => {
@@ -881,6 +881,12 @@ export const ChainedGame: React.FC = () => {
       ctx.fillStyle = '#ffea00';
       ctx.fillRect(portalX - 20, portalY, 40, 4);
 
+      // Exit portal hint
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.font = 'bold 8px Orbitron';
+      ctx.textAlign = 'center';
+      ctx.fillText("Hint: Maybe we jump togather, we reach new heights!", portalX, portalY + 30);
+
       // 5. Draw Particles
       particlesRef.current.forEach((part) => {
         const opacity = 1 - part.life / part.maxLife;
@@ -1012,7 +1018,7 @@ export const ChainedGame: React.FC = () => {
       {/* Game Header Bar */}
       <div className="game-header-bar glass-panel" style={{ width: '100%', maxWidth: '900px' }}>
         <h2 className="game-title-text font-display">
-          HEIGHTS CLIMB: <span className="text-purple">TOWER ASCENT</span>
+          Chained Togather <span className="text-purple">Chapter 1</span>
         </h2>
 
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginLeft: 'auto' }}>
@@ -1082,6 +1088,9 @@ export const ChainedGame: React.FC = () => {
           <button className="copy-btn" onClick={toggleFullscreen} style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
             <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+          </button>
+          <button className="glow-btn-magenta" onClick={stopGame} style={{ padding: '0.4rem 1.2rem', fontSize: '0.8rem' }}>
+            Exit Game
           </button>
         </div>
       </div>

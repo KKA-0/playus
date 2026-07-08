@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
-import type { PlayerState, Crop, WildItem, SmokeParticle, InventoryItem, Weed } from './farm/types';
+import type { PlayerState, Crop, WildItem, SmokeParticle, InventoryItem, Weed, ChickenState } from './farm/types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, PLAYER_SPEED, SPRITE_SIZE } from './farm/constants';
 import { getGameClock, getAmbientColor, getItemEmoji } from './farm/utils';
 import { ChestOverlay } from './farm/ChestOverlay';
@@ -135,6 +135,10 @@ export const FarmGame: React.FC = () => {
   const femaleUpImageRef = useRef<HTMLImageElement | null>(null);
   const bedImageRef = useRef<HTMLImageElement | null>(null);
   const sofaImageRef = useRef<HTMLImageElement | null>(null);
+  const weed1ImageRef = useRef<HTMLImageElement | null>(null);
+  const weed2ImageRef = useRef<HTMLImageElement | null>(null);
+  const weed3ImageRef = useRef<HTMLImageElement | null>(null);
+  const chickenImageRef = useRef<HTMLImageElement | null>(null);
   const chimneyGifRef = useRef<HTMLImageElement | null>(null);
 
   const outdoorBgCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -208,13 +212,61 @@ export const FarmGame: React.FC = () => {
       list.push({
         id: `weed_${Date.now()}_${list.length}_${Math.floor(Math.random() * 1000)}`,
         x: wx,
-        y: wy
+        y: wy,
+        type: Math.floor(Math.random() * 3) + 1
       });
     }
     return list;
   };
 
   const weedsRef = useRef<Weed[]>(generateInitialWeeds());
+
+  const generateInitialChickens = (): ChickenState[] => [
+    {
+      id: 'chicken_1',
+      x: 350,
+      y: 180,
+      startX: 350,
+      startY: 180,
+      vx: 0,
+      vy: 0,
+      direction: 'down',
+      state: 'idle',
+      timer: 1 + Math.random() * 2,
+      frameIndex: 0,
+      animationTick: 0
+    },
+    {
+      id: 'chicken_2',
+      x: 650,
+      y: 180,
+      startX: 650,
+      startY: 180,
+      vx: 0,
+      vy: 0,
+      direction: 'down',
+      state: 'idle',
+      timer: 1 + Math.random() * 2,
+      frameIndex: 0,
+      animationTick: 0
+    },
+    {
+      id: 'chicken_3',
+      x: 500,
+      y: 260,
+      startX: 500,
+      startY: 260,
+      vx: 0,
+      vy: 0,
+      direction: 'down',
+      state: 'idle',
+      timer: 1 + Math.random() * 2,
+      frameIndex: 0,
+      animationTick: 0
+    }
+  ];
+
+  const chickensRef = useRef<ChickenState[]>(generateInitialChickens());
 
   // UI rendering state force-updater
   const [uiVersion, setUiVersion] = useState<number>(0);
@@ -235,7 +287,7 @@ export const FarmGame: React.FC = () => {
   // Preload assets
   useEffect(() => {
     let loadedCount = 0;
-    const totalAssets = 7;
+    const totalAssets = 11;
 
     const onAssetLoad = () => {
       loadedCount++;
@@ -305,6 +357,42 @@ export const FarmGame: React.FC = () => {
       console.error('Failed to load chimney image asset', e);
       onAssetLoad(); // fall back gracefully
     };
+
+    const weed1Img = new Image();
+    weed1Img.src = '/weed1.png';
+    weed1Img.onload = onAssetLoad;
+    weed1Img.onerror = (e) => {
+      console.error('Failed to load weed1 image asset', e);
+      onAssetLoad();
+    };
+    weed1ImageRef.current = weed1Img;
+
+    const weed2Img = new Image();
+    weed2Img.src = '/weed2.png';
+    weed2Img.onload = onAssetLoad;
+    weed2Img.onerror = (e) => {
+      console.error('Failed to load weed2 image asset', e);
+      onAssetLoad();
+    };
+    weed2ImageRef.current = weed2Img;
+
+    const weed3Img = new Image();
+    weed3Img.src = '/weed3.png';
+    weed3Img.onload = onAssetLoad;
+    weed3Img.onerror = (e) => {
+      console.error('Failed to load weed3 image asset', e);
+      onAssetLoad();
+    };
+    weed3ImageRef.current = weed3Img;
+
+    const chickenImg = new Image();
+    chickenImg.src = '/farm/pets/chicken.png';
+    chickenImg.onload = onAssetLoad;
+    chickenImg.onerror = (e) => {
+      console.error('Failed to load chicken image asset', e);
+      onAssetLoad();
+    };
+    chickenImageRef.current = chickenImg;
   }, []);
 
   // Hide chimney gif overlay when selection is not complete
@@ -733,6 +821,7 @@ export const FarmGame: React.FC = () => {
 
   // Warning tracker for full backpack
   const inventoryFullTimeRef = useRef<number>(0);
+  const lastChestTransferTimeRef = useRef<number>(0);
   const alertFullBackpack = () => {
     inventoryFullTimeRef.current = Date.now();
   };
@@ -740,7 +829,7 @@ export const FarmGame: React.FC = () => {
   const performGameAction = (action: any) => {
     if (!isHost && isConnected) {
       // Client sends to Host to perform action
-      sendGameData({ type: 'action', action });
+      sendGameEvent({ type: 'farm_action', action });
       return;
     }
 
@@ -804,10 +893,15 @@ export const FarmGame: React.FC = () => {
       }
       if (!isHost) {
         // Client receives master state from Host
-        if (gameData.chest) chestItemsRef.current = [...gameData.chest];
+        if (gameData.chest) {
+          if (Date.now() - lastChestTransferTimeRef.current > 800) {
+            chestItemsRef.current = [...gameData.chest];
+          }
+        }
         if (gameData.crops) cropsRef.current = [...gameData.crops];
         if (gameData.wildItems) wildItemsRef.current = [...gameData.wildItems];
         if (gameData.weeds) weedsRef.current = [...gameData.weeds];
+        if (gameData.chickens) chickensRef.current = [...gameData.chickens];
         if (gameData.elapsedTime !== undefined) {
           elapsedTimeRef.current = gameData.elapsedTime;
         }
@@ -819,7 +913,7 @@ export const FarmGame: React.FC = () => {
         performGameAction(gameData.action);
       }
     }
-  }, [gameData]);
+  }, [gameData, isHost, performGameAction]);
 
   // Sync selection events
   useEffect(() => {
@@ -844,13 +938,20 @@ export const FarmGame: React.FC = () => {
     }
   }, [localGender, remoteGender, isConnected]);
 
-  // Restart trigger from peer
+  // Restart/Action trigger from peer
   useEffect(() => {
-    if (gameEvent && gameEvent.type === 'restart_farm') {
-      handleRestartLocal();
-      resetGameEvent();
+    if (gameEvent) {
+      if (gameEvent.type === 'restart_farm') {
+        handleRestartLocal();
+        resetGameEvent();
+      } else if (gameEvent.type === 'farm_action') {
+        if (isHost) {
+          performGameAction(gameEvent.action);
+        }
+        resetGameEvent();
+      }
     }
-  }, [gameEvent]);
+  }, [gameEvent, isHost, performGameAction, resetGameEvent]);
 
   const handleRestartLocal = () => {
     setLocalGender(null);
@@ -1019,7 +1120,8 @@ export const FarmGame: React.FC = () => {
                   weedsRef.current.push({
                     id: `spawn_${currentSpTime}_${Math.floor(Math.random() * 1000)}`,
                     x: wx,
-                    y: wy
+                    y: wy,
+                    type: Math.floor(Math.random() * 3) + 1
                   });
                   spawned = true;
                   setUiVersion((v) => v + 1);
@@ -1028,6 +1130,70 @@ export const FarmGame: React.FC = () => {
             }
           }
         }
+
+        // Chickens wandering & animation update
+        chickensRef.current.forEach((ch) => {
+          ch.timer -= 1 / 60;
+          if (ch.timer <= 0) {
+            if (ch.state === 'idle') {
+              ch.state = 'walking';
+              const dirs: ('down' | 'left' | 'right' | 'up')[] = ['down', 'left', 'right', 'up'];
+              ch.direction = dirs[Math.floor(Math.random() * dirs.length)];
+              const speed = 0.5 + Math.random() * 0.4;
+              if (ch.direction === 'left') { ch.vx = -speed; ch.vy = 0; }
+              else if (ch.direction === 'right') { ch.vx = speed; ch.vy = 0; }
+              else if (ch.direction === 'up') { ch.vx = 0; ch.vy = -speed; }
+              else { ch.vx = 0; ch.vy = speed; }
+              ch.timer = 1.5 + Math.random() * 2;
+            } else {
+              ch.state = 'idle';
+              ch.vx = 0;
+              ch.vy = 0;
+              ch.timer = 1 + Math.random() * 2;
+            }
+          }
+
+          if (ch.state === 'walking') {
+            const nextX = ch.x + ch.vx;
+            const nextY = ch.y + ch.vy;
+
+            // Constrain wandering area: near their starting coordinates (up to 120px)
+            const maxWander = 120;
+            const withinBoundaries = 
+              nextX >= Math.max(40, ch.startX - maxWander) && 
+              nextX <= Math.min(MAP_WIDTH - 40, ch.startX + maxWander) &&
+              nextY >= Math.max(40, ch.startY - maxWander) && 
+              nextY <= Math.min(MAP_HEIGHT - 40, ch.startY + maxWander);
+
+            // Check boundaries and house collision
+            if (withinBoundaries && !checkHouseCollision(nextX, nextY)) {
+              ch.x = nextX;
+              ch.y = nextY;
+            } else {
+              // Bounced or hit boundary: turn around
+              ch.vx = -ch.vx;
+              ch.vy = -ch.vy;
+              if (ch.direction === 'left') ch.direction = 'right';
+              else if (ch.direction === 'right') ch.direction = 'left';
+              else if (ch.direction === 'up') ch.direction = 'down';
+              else ch.direction = 'up';
+            }
+
+            // Animate walking frames (4 frames per row, 8 ticks per frame)
+            ch.animationTick++;
+            if (ch.animationTick >= 8) {
+              ch.frameIndex = (ch.frameIndex + 1) % 4;
+              ch.animationTick = 0;
+            }
+          } else {
+            // Idle frame animation: slower blinking/pecking
+            ch.animationTick++;
+            if (ch.animationTick >= 16) {
+              ch.frameIndex = (ch.frameIndex + 1) % 4;
+              ch.animationTick = 0;
+            }
+          }
+        });
       }
 
       if (isChestOpenRef.current) {
@@ -1127,6 +1293,7 @@ export const FarmGame: React.FC = () => {
           crops: cropsRef.current,
           wildItems: wildItemsRef.current,
           weeds: weedsRef.current,
+          chickens: chickensRef.current,
           elapsedTime: elapsedTimeRef.current
         });
       } else {
@@ -1545,26 +1712,75 @@ export const FarmGame: React.FC = () => {
 
         // 3.5 Draw Wild Weeds
         weedsRef.current.forEach((weed) => {
-          ctx.fillStyle = 'rgba(0,0,0,0.1)';
+          const type = weed.type || (parseInt(weed.id.split('_')[2] || '0') % 3) + 1;
+          let img: HTMLImageElement | null = null;
+          let w = 18;
+          let h = 18;
+          let shadowW = 6;
+          let shadowH = 2;
+
+          if (type === 1) {
+            img = weed1ImageRef.current;
+            w = 12;
+            h = 12;
+            shadowW = 4;
+            shadowH = 1.5;
+          } else if (type === 3) {
+            img = weed3ImageRef.current;
+            w = 26;
+            h = 26;
+            shadowW = 9;
+            shadowH = 3;
+          } else {
+            img = weed2ImageRef.current;
+            w = 18;
+            h = 18;
+            shadowW = 6;
+            shadowH = 2;
+          }
+
+          // Draw shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.12)';
           ctx.beginPath();
-          ctx.ellipse(weed.x, weed.y - 1, 6, 2, 0, 0, Math.PI * 2);
+          ctx.ellipse(weed.x, weed.y - 1, shadowW, shadowH, 0, 0, Math.PI * 2);
           ctx.fill();
 
-          ctx.strokeStyle = '#2e7d32';
-          ctx.lineWidth = 1.8;
-          ctx.beginPath();
-          ctx.moveTo(weed.x, weed.y);
-          ctx.quadraticCurveTo(weed.x - 4, weed.y - 7, weed.x - 6, weed.y - 11);
-          ctx.moveTo(weed.x, weed.y);
-          ctx.quadraticCurveTo(weed.x, weed.y - 9, weed.x + 1, weed.y - 13);
-          ctx.moveTo(weed.x, weed.y);
-          ctx.quadraticCurveTo(weed.x + 4, weed.y - 7, weed.x + 6, weed.y - 10);
-          ctx.stroke();
+          // Draw image
+          if (img) {
+            ctx.drawImage(img, weed.x - w / 2, weed.y - h, w, h);
+          }
+        });
 
-          ctx.fillStyle = '#ffea00';
+        // 3.8 Draw Chickens
+        chickensRef.current.forEach((ch) => {
+          // Draw shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.15)';
           ctx.beginPath();
-          ctx.arc(weed.x + 1, weed.y - 13, 2, 0, Math.PI * 2);
+          ctx.ellipse(ch.x, ch.y - 1, 6, 2, 0, 0, Math.PI * 2);
           ctx.fill();
+
+          if (chickenImageRef.current) {
+            let row = 0;
+            if (ch.direction === 'left') row = 1;
+            else if (ch.direction === 'right') row = 2;
+            else if (ch.direction === 'up') row = 3;
+
+            const size = 32;
+            const sx = ch.frameIndex * size;
+            const sy = row * size;
+
+            ctx.drawImage(
+              chickenImageRef.current,
+              sx,
+              sy,
+              size,
+              size,
+              ch.x - 12,
+              ch.y - 22,
+              24,
+              24
+            );
+          }
         });
 
         // 4. Draw Chimney Smoke Particles
@@ -1892,6 +2108,10 @@ export const FarmGame: React.FC = () => {
       }
     }
 
+    // Set local chest state and lock sync immediately to avoid lag/flashing
+    chestItemsRef.current = newChest;
+    lastChestTransferTimeRef.current = Date.now();
+
     performGameAction({ type: 'chest_transfer', chest: newChest });
     setUiVersion((v) => v + 1);
   };
@@ -1930,6 +2150,10 @@ export const FarmGame: React.FC = () => {
         alertFullBackpack();
       }
     }
+
+    // Set local chest state and lock sync immediately to avoid lag/flashing
+    chestItemsRef.current = newChest;
+    lastChestTransferTimeRef.current = Date.now();
 
     performGameAction({ type: 'chest_transfer', chest: newChest });
     setUiVersion((v) => v + 1);

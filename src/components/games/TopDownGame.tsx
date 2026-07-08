@@ -769,6 +769,10 @@ export const TopDownGame: React.FC = () => {
             </div>
             <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{health}</span>
           </div>
+
+          <button className="glow-btn-magenta" onClick={stopGame} style={{ padding: '0.4rem 1.2rem', fontSize: '0.8rem' }}>
+            Exit Game
+          </button>
         </div>
       </div>
 

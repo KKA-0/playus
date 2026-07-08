@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePeer } from '../context/PeerContext';
 import { 
   Play, Copy, Check, MessageSquare, Users, Wifi, 
-  Gamepad2, LogOut, ArrowRight, ShieldAlert, Music
+  Gamepad2, LogOut, ArrowRight, ShieldAlert
 } from 'lucide-react';
 
 export const Lobby: React.FC = () => {
@@ -256,21 +256,6 @@ export const Lobby: React.FC = () => {
             </div>
 
             <div 
-              className={`game-option-card music ${activeGame === 'music' ? 'selected' : ''}`}
-              onClick={() => isHost && selectGame('music')}
-              style={{ pointerEvents: isHost ? 'auto' : 'none' }}
-            >
-              <div className="game-card-img" style={{ backgroundImage: 'linear-gradient(135deg, #1db954, #191414)' }}>
-                <Music className="game-card-icon" style={{ opacity: 0.9 }} />
-              </div>
-              <div className="game-card-content">
-                <h3 className="game-card-title">Co-op Music Sync</h3>
-                <p className="game-card-desc">Sync and listen to Spotify or YouTube music in real-time with your friend. Paste URLs, toggle players, and control playback together!</p>
-                <span className="game-card-players">Music Party Mode</span>
-              </div>
-            </div>
-
-            <div 
               className={`game-option-card farm ${activeGame === 'farm' ? 'selected' : ''}`}
               onClick={() => isHost && selectGame('farm')}
               style={{ pointerEvents: isHost ? 'auto' : 'none' }}
@@ -299,7 +284,6 @@ export const Lobby: React.FC = () => {
                 {activeGame === 'shooter' && 'Arena Survival (Top-Down)'}
                 {activeGame === 'snake' && 'Cyber Slither (Snake Arena)'}
                 {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
-                {activeGame === 'music' && 'Co-op Music Sync (Music Room)'}
                 {activeGame === 'farm' && 'Farm Together (Top-Down GBA)'}
                 {!activeGame && 'No Game Selected'}
               </span>

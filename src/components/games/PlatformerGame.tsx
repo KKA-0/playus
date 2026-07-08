@@ -828,6 +828,9 @@ export const PlatformerGame: React.FC = () => {
           <div className="peer-badge" style={{ color: 'var(--neon-yellow)' }}>
             {levelStateRef.current.keyCollected ? '🔑 Key Acquired!' : '❌ Key Required'}
           </div>
+          <button className="glow-btn-magenta" onClick={stopGame} style={{ padding: '0.4rem 1.2rem', fontSize: '0.8rem' }}>
+            Exit Game
+          </button>
         </div>
       </div>
 
