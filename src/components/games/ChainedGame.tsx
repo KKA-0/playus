@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
-import { Shield, Flag, Award, Maximize, Minimize, Volume2, VolumeX } from 'lucide-react';
+import { Shield, Flag, Award, Maximize, Minimize, Volume2, VolumeX, Gamepad2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const CANVAS_WIDTH = 800;
@@ -119,6 +119,7 @@ export const ChainedGame: React.FC = () => {
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [gameWon, setGameWon] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
 
   // Audio state
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -134,6 +135,30 @@ export const ChainedGame: React.FC = () => {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Gamepad connection listener
+  useEffect(() => {
+    const handleConnect = () => setGamepadConnected(true);
+    const handleDisconnect = () => {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const hasActive = Array.from(gamepads).some(g => g !== null);
+      setGamepadConnected(hasActive);
+    };
+
+    window.addEventListener('gamepadconnected', handleConnect);
+    window.addEventListener('gamepaddisconnected', handleDisconnect);
+
+    // Initial check
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    if (Array.from(gamepads).some(g => g !== null)) {
+      setGamepadConnected(true);
+    }
+
+    return () => {
+      window.removeEventListener('gamepadconnected', handleConnect);
+      window.removeEventListener('gamepaddisconnected', handleDisconnect);
     };
   }, []);
 
@@ -588,13 +613,59 @@ export const ChainedGame: React.FC = () => {
 
       // --- LOCAL MOVEMENT ---
       let inputVx = 0;
-      if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) {
-        inputVx = -WALK_SPEED;
+      let gamepadJump = false;
+
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const gp = Array.from(gamepads).find((g) => g !== null);
+
+      if (gp) {
+        const deadzone = 0.2;
+        const axisX = gp.axes[0] || 0;
+        const axisY = gp.axes[1] || 0;
+
+        if (Math.abs(axisX) > deadzone) {
+          inputVx = axisX * WALK_SPEED;
+        } else if (
+          keysRef.current['a'] ||
+          keysRef.current['A'] ||
+          keysRef.current['ArrowLeft'] ||
+          (gp.buttons[14] && gp.buttons[14].pressed)
+        ) {
+          inputVx = -WALK_SPEED;
+        } else if (
+          keysRef.current['d'] ||
+          keysRef.current['D'] ||
+          keysRef.current['ArrowRight'] ||
+          (gp.buttons[15] && gp.buttons[15].pressed)
+        ) {
+          inputVx = WALK_SPEED;
+        }
+
+        if (
+          (gp.buttons[0] && gp.buttons[0].pressed) ||
+          (gp.buttons[12] && gp.buttons[12].pressed) ||
+          axisY < -deadzone
+        ) {
+          gamepadJump = true;
+        }
+      } else {
+        if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) {
+          inputVx = -WALK_SPEED;
+        }
+        if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) {
+          inputVx = WALK_SPEED;
+        }
       }
-      if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) {
-        inputVx = WALK_SPEED;
-      }
-      if ((keysRef.current['w'] || keysRef.current['W'] || keysRef.current['ArrowUp'] || keysRef.current[' ']) && !local.isJumping && local.grounded) {
+
+      if (
+        (keysRef.current['w'] ||
+          keysRef.current['W'] ||
+          keysRef.current['ArrowUp'] ||
+          keysRef.current[' '] ||
+          gamepadJump) &&
+        !local.isJumping &&
+        local.grounded
+      ) {
         local.vy = JUMP_FORCE;
         local.isJumping = true;
         local.grounded = false;
@@ -1062,6 +1133,13 @@ export const ChainedGame: React.FC = () => {
             <span>Target: Portal</span>
           </div>
 
+          {gamepadConnected && (
+            <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)', gap: '0.4rem', animation: 'pulse 1.5s infinite alternate' }}>
+              <Gamepad2 size={14} />
+              <span>Controller Connected</span>
+            </div>
+          )}
+
           {/* Volume Control Widget */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.3rem 0.6rem' }}>
             {volume === 0 ? <VolumeX size={14} className="text-muted" /> : <Volume2 size={14} style={{ color: 'var(--neon-purple)' }} />}
@@ -1124,7 +1202,7 @@ export const ChainedGame: React.FC = () => {
       {/* Helper Controls bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
         <div>
-          <span>Walk: </span><span style={{ color: 'var(--text-primary)' }}>A / D</span> or <span style={{ color: 'var(--text-primary)' }}>← / →</span> | <span>Jump: </span><span style={{ color: 'var(--text-primary)' }}>W / Space</span> or <span style={{ color: 'var(--text-primary)' }}>↑</span>
+          <span>Walk: </span><span style={{ color: 'var(--text-primary)' }}>A / D</span> or <span style={{ color: 'var(--text-primary)' }}>← / →</span> | <span>Jump: </span><span style={{ color: 'var(--text-primary)' }}>W / Space</span> or <span style={{ color: 'var(--text-primary)' }}>↑</span> | <span>Controller: </span><span style={{ color: 'var(--text-primary)' }}>Left Stick / D-pad (Move) & Button A / D-pad Up (Jump)</span>
         </div>
         <div>
           <span>Rule: </span><span style={{ color: 'var(--neon-purple)', fontWeight: 600 }}>Stay within 140px chain limit</span>

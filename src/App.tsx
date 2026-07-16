@@ -7,6 +7,7 @@ import { TopDownGame } from './components/games/TopDownGame';
 import { SnakeGame } from './components/games/SnakeGame';
 import { ChainedGame } from './components/games/ChainedGame';
 import { FarmGame } from './components/games/FarmGame';
+import { ChaoticDrawingGame } from './components/games/ChaoticDrawingGame';
 import { 
   MessageSquare, ArrowRight, Gamepad, HelpCircle 
 } from 'lucide-react';
@@ -117,6 +118,7 @@ const AppContent: React.FC = () => {
               {activeGame === 'snake' && <SnakeGame />}
               {activeGame === 'chained' && <ChainedGame />}
               {activeGame === 'farm' && <FarmGame />}
+              {activeGame === 'drawing' && <ChaoticDrawingGame />}
             </div>
 
             {/* Sidebar Column on right */}
@@ -203,6 +205,37 @@ const AppContent: React.FC = () => {
                     <li className="control-item">
                       <span className="control-label">Goal</span>
                       <span className="text-green">🏁 Exit Portal</span>
+                    </li>
+                  </ul>
+                ) : activeGame === 'drawing' ? (
+                  <ul className="controls-list">
+                    <li className="control-item">
+                      <span className="control-label">Draw on Canvas</span>
+                      <span className="control-key">Left Click + Drag</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Brush Colors</span>
+                      <span className="control-key">Neon Palette</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Paint Bucket / Fill</span>
+                      <span className="control-key">Click to Flood Fill</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Undo Last Action</span>
+                      <span className="control-key">Ctrl + Z</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Redo Last Action</span>
+                      <span className="control-key">Ctrl + Y</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Turn Duration</span>
+                      <span className="text-yellow">⏱️ 30 seconds</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Chances</span>
+                      <span className="text-green">5 Turns Each</span>
                     </li>
                   </ul>
                 ) : (

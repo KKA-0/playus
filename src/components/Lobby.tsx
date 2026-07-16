@@ -269,10 +269,23 @@ export const Lobby: React.FC = () => {
                 <span className="game-card-players">Co-op Farm Exploration</span>
               </div>
             </div>
+
+            <div 
+              className={`game-option-card drawing ${activeGame === 'drawing' ? 'selected' : ''}`}
+              onClick={() => isHost && selectGame('drawing')}
+              style={{ pointerEvents: isHost ? 'auto' : 'none' }}
+            >
+              <div className="game-card-img">
+                <Gamepad2 className="game-card-icon" />
+              </div>
+              <div className="game-card-content">
+                <h3 className="game-card-title">Chaotic Drawing</h3>
+                <p className="game-card-desc">Draw a chosen word together! Take turns drawing on a synced canvas that alternates every 10 seconds. Create a masterpiece together!</p>
+                <span className="game-card-players">Co-op Alternating Drawing</span>
+              </div>
+            </div>
           </div>
         </div>
-
-
 
         {/* Launch actions */}
         <div className="lobby-launch-bar glass-panel">
@@ -285,6 +298,7 @@ export const Lobby: React.FC = () => {
                 {activeGame === 'snake' && 'Cyber Slither (Snake Arena)'}
                 {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
                 {activeGame === 'farm' && 'Farm Together (Top-Down GBA)'}
+                {activeGame === 'drawing' && 'Chaotic Drawing (Alternating Canvas)'}
                 {!activeGame && 'No Game Selected'}
               </span>
             </div>

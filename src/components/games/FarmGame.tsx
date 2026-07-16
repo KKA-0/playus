@@ -39,6 +39,32 @@ export const FarmGame: React.FC = () => {
     selectedSlotRef.current = selectedSlot;
   }, [selectedSlot]);
 
+  const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
+  const prevGamepadButtonsRef = useRef<boolean[]>([]);
+
+  useEffect(() => {
+    const handleConnect = () => setGamepadConnected(true);
+    const handleDisconnect = () => {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const hasActive = Array.from(gamepads).some(g => g !== null);
+      setGamepadConnected(hasActive);
+    };
+
+    window.addEventListener('gamepadconnected', handleConnect);
+    window.addEventListener('gamepaddisconnected', handleDisconnect);
+
+    // Initial check
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    if (Array.from(gamepads).some(g => g !== null)) {
+      setGamepadConnected(true);
+    }
+
+    return () => {
+      window.removeEventListener('gamepadconnected', handleConnect);
+      window.removeEventListener('gamepaddisconnected', handleDisconnect);
+    };
+  }, []);
+
   // Audio state
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const homeAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -654,6 +680,130 @@ export const FarmGame: React.FC = () => {
     }
   };
 
+  const triggerInteract = () => {
+    if (isNearChestRef.current) {
+      setIsChestOpen((prev) => !prev);
+      return;
+    }
+    if (isChestOpenRef.current) {
+      setIsChestOpen(false);
+      return;
+    }
+
+    const p = localPlayerRef.current;
+    if (!p.inHouse) {
+      // 1. Check crop harvesting
+      let closestCropIdx = -1;
+      let minDist = 35;
+      cropsRef.current.forEach((crop, idx) => {
+        const dist = Math.hypot(p.x - crop.x, p.y - crop.y);
+        if (dist < minDist) {
+          minDist = dist;
+          closestCropIdx = idx;
+        }
+      });
+
+      if (closestCropIdx !== -1 && cropsRef.current[closestCropIdx].stage === 2) {
+        const cropType = cropsRef.current[closestCropIdx].type;
+        const success = addToInventory(p, cropType);
+        if (success) {
+          performGameAction({ type: 'harvest', index: closestCropIdx });
+        } else {
+          alertFullBackpack();
+        }
+        return;
+      }
+
+      // 2. Check wild item gathering
+      let closestItem: WildItem | null = null;
+      let minItemDist = 35;
+      wildItemsRef.current.forEach((item) => {
+        if (item.active) {
+          const dist = Math.hypot(p.x - item.x, p.y - item.y);
+          if (dist < minItemDist) {
+            minItemDist = dist;
+            closestItem = item;
+          }
+        }
+      });
+
+      if (closestItem) {
+        const itemType = (closestItem as WildItem).type;
+        const success = addToInventory(p, itemType);
+        if (success) {
+          performGameAction({ type: 'pickup_item', itemId: (closestItem as WildItem).id });
+        } else {
+          alertFullBackpack();
+        }
+        return;
+      }
+
+      // 3. Check weed plucking
+      let closestWeed: Weed | null = null;
+      let minWeedDist = 25;
+      for (const weed of weedsRef.current) {
+        const dist = Math.hypot(p.x - weed.x, p.y - weed.y);
+        if (dist < minWeedDist) {
+          minWeedDist = dist;
+          closestWeed = weed;
+        }
+      }
+
+      if (closestWeed) {
+        spawnPluckParticles(closestWeed.x, closestWeed.y);
+        performGameAction({ type: 'pluck_weed', weedId: closestWeed.id });
+        return;
+      }
+    }
+  };
+
+  const triggerUseHeldItem = () => {
+    if (isChestOpenRef.current) return;
+
+    const p = localPlayerRef.current;
+    if (!p.inHouse) {
+      const selectedSlotIdx = selectedSlotRef.current;
+      const heldItem = p.inventory[selectedSlotIdx];
+
+      if (heldItem && heldItem.type === 'seeds') {
+        // Plant crop on plot (plot: x [350, 650], y [250, 450])
+        const isOnPlot = p.x >= 350 && p.x <= 650 && p.y >= 250 && p.y <= 450;
+        if (isOnPlot) {
+          const newCrop: Crop = {
+            x: p.x,
+            y: p.y,
+            type: Math.random() < 0.6 ? 'carrot' : 'pumpkin',
+            stage: 0,
+            watered: false,
+            growthTimer: 0
+          };
+          performGameAction({ type: 'plant', crop: newCrop });
+
+          // Consume seed
+          heldItem.count--;
+          if (heldItem.count <= 0) {
+            p.inventory[selectedSlotIdx] = null;
+          }
+          setUiVersion((v) => v + 1);
+        }
+      } else if (heldItem && heldItem.type === 'watering_can') {
+        // Water crop
+        let closestCropIdx = -1;
+        let minDist = 35;
+        cropsRef.current.forEach((crop, idx) => {
+          const dist = Math.hypot(p.x - crop.x, p.y - crop.y);
+          if (dist < minDist) {
+            minDist = dist;
+            closestCropIdx = idx;
+          }
+        });
+        if (closestCropIdx !== -1 && !cropsRef.current[closestCropIdx].watered) {
+          performGameAction({ type: 'water', index: closestCropIdx });
+        }
+      }
+    }
+  };
+
   // Set up local keyboard listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -682,127 +832,11 @@ export const FarmGame: React.FC = () => {
       }
 
       if (e.key === 'e' || e.key === 'E') {
-        if (isNearChestRef.current) {
-          setIsChestOpen((prev) => !prev);
-          return;
-        }
-        if (isChestOpenRef.current) {
-          setIsChestOpen(false);
-          return;
-        }
-
-        const p = localPlayerRef.current;
-        if (!p.inHouse) {
-          // 1. Check crop harvesting
-          let closestCropIdx = -1;
-          let minDist = 35;
-          cropsRef.current.forEach((crop, idx) => {
-            const dist = Math.hypot(p.x - crop.x, p.y - crop.y);
-            if (dist < minDist) {
-              minDist = dist;
-              closestCropIdx = idx;
-            }
-          });
-
-          if (closestCropIdx !== -1 && cropsRef.current[closestCropIdx].stage === 2) {
-            const cropType = cropsRef.current[closestCropIdx].type;
-            const success = addToInventory(p, cropType);
-            if (success) {
-              performGameAction({ type: 'harvest', index: closestCropIdx });
-            } else {
-              alertFullBackpack();
-            }
-            return;
-          }
-
-          // 2. Check wild item gathering
-          let closestItem: WildItem | null = null;
-          let minItemDist = 35;
-          wildItemsRef.current.forEach((item) => {
-            if (item.active) {
-              const dist = Math.hypot(p.x - item.x, p.y - item.y);
-              if (dist < minItemDist) {
-                minItemDist = dist;
-                closestItem = item;
-              }
-            }
-          });
-
-          if (closestItem) {
-            const itemType = (closestItem as WildItem).type;
-            const success = addToInventory(p, itemType);
-            if (success) {
-              performGameAction({ type: 'pickup_item', itemId: (closestItem as WildItem).id });
-            } else {
-              alertFullBackpack();
-            }
-            return;
-          }
-
-          // 3. Check weed plucking
-          let closestWeed: Weed | null = null;
-          let minWeedDist = 25;
-          for (const weed of weedsRef.current) {
-            const dist = Math.hypot(p.x - weed.x, p.y - weed.y);
-            if (dist < minWeedDist) {
-              minWeedDist = dist;
-              closestWeed = weed;
-            }
-          }
-
-          if (closestWeed) {
-            spawnPluckParticles(closestWeed.x, closestWeed.y);
-            performGameAction({ type: 'pluck_weed', weedId: closestWeed.id });
-            return;
-          }
-        }
+        triggerInteract();
       }
 
       if (e.key === ' ') {
-        if (isChestOpenRef.current) return;
-
-        const p = localPlayerRef.current;
-        if (!p.inHouse) {
-          const selectedSlotIdx = selectedSlotRef.current;
-          const heldItem = p.inventory[selectedSlotIdx];
-
-          if (heldItem && heldItem.type === 'seeds') {
-            // Plant crop on plot (plot: x [350, 650], y [250, 450])
-            const isOnPlot = p.x >= 350 && p.x <= 650 && p.y >= 250 && p.y <= 450;
-            if (isOnPlot) {
-              const newCrop: Crop = {
-                x: p.x,
-                y: p.y,
-                type: Math.random() < 0.6 ? 'carrot' : 'pumpkin',
-                stage: 0,
-                watered: false,
-                growthTimer: 0
-              };
-              performGameAction({ type: 'plant', crop: newCrop });
-
-              // Consume seed
-              heldItem.count--;
-              if (heldItem.count <= 0) {
-                p.inventory[selectedSlotIdx] = null;
-              }
-              setUiVersion((v) => v + 1);
-            }
-          } else if (heldItem && heldItem.type === 'watering_can') {
-            // Water crop
-            let closestCropIdx = -1;
-            let minDist = 35;
-            cropsRef.current.forEach((crop, idx) => {
-              const dist = Math.hypot(p.x - crop.x, p.y - crop.y);
-              if (dist < minDist) {
-                minDist = dist;
-                closestCropIdx = idx;
-              }
-            });
-            if (closestCropIdx !== -1 && !cropsRef.current[closestCropIdx].watered) {
-              performGameAction({ type: 'water', index: closestCropIdx });
-            }
-          }
-        }
+        triggerUseHeldItem();
       }
     };
 
@@ -1072,6 +1106,50 @@ export const FarmGame: React.FC = () => {
     const updatePhysics = () => {
       const p = localPlayerRef.current;
 
+      // Poll gamepad buttons
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const gp = Array.from(gamepads).find((g) => g !== null);
+
+      if (gp) {
+        const isButtonPressed = (btnIndex: number) => {
+          return gp.buttons[btnIndex] ? gp.buttons[btnIndex].pressed : false;
+        };
+        const wasButtonPressed = (btnIndex: number) => {
+          return prevGamepadButtonsRef.current[btnIndex] || false;
+        };
+        const isButtonJustPressed = (btnIndex: number) => {
+          return isButtonPressed(btnIndex) && !wasButtonPressed(btnIndex);
+        };
+
+        // LB (4) -> Cycle inventory backward
+        if (isButtonJustPressed(4)) {
+          setSelectedSlot((curr) => (curr - 1 + 3) % 3);
+        }
+        // RB (5) -> Cycle inventory forward
+        if (isButtonJustPressed(5)) {
+          setSelectedSlot((curr) => (curr + 1) % 3);
+        }
+
+        // Button A (0) -> Use held item (Space)
+        if (isButtonJustPressed(0)) {
+          triggerUseHeldItem();
+        }
+
+        // Button X (2) -> Interact (E)
+        if (isButtonJustPressed(2)) {
+          triggerInteract();
+        }
+
+        // Button B (1) -> Close chest
+        if (isButtonJustPressed(1) && isChestOpenRef.current) {
+          setIsChestOpen(false);
+        }
+
+        prevGamepadButtonsRef.current = gp.buttons.map((b) => b.pressed);
+      } else {
+        prevGamepadButtonsRef.current = [];
+      }
+
       // Proximity check for chest
       const distToChest = Math.hypot(p.x - 550, p.y - 120);
       isNearChestRef.current = p.inHouse && distToChest < 45;
@@ -1202,16 +1280,43 @@ export const FarmGame: React.FC = () => {
         let dx = 0;
         let dy = 0;
 
-        if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) dx = -1;
-        if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) dx = 1;
-        if (keysRef.current['w'] || keysRef.current['W'] || keysRef.current['ArrowUp']) dy = -1;
-        if (keysRef.current['s'] || keysRef.current['S'] || keysRef.current['ArrowDown']) dy = 1;
+        let gpDx = 0;
+        let gpDy = 0;
+        if (gp) {
+          const deadzone = 0.2;
+          const axisX = gp.axes[0] || 0;
+          const axisY = gp.axes[1] || 0;
 
-        // Normalization
-        if (dx !== 0 && dy !== 0) {
-          const length = Math.sqrt(dx * dx + dy * dy);
-          dx /= length;
-          dy /= length;
+          if (Math.abs(axisX) > deadzone) gpDx = axisX;
+          if (Math.abs(axisY) > deadzone) gpDy = axisY;
+
+          if (gp.buttons[14] && gp.buttons[14].pressed) gpDx = -1;
+          if (gp.buttons[15] && gp.buttons[15].pressed) gpDx = 1;
+          if (gp.buttons[12] && gp.buttons[12].pressed) gpDy = -1;
+          if (gp.buttons[13] && gp.buttons[13].pressed) gpDy = 1;
+
+          const mag = Math.sqrt(gpDx * gpDx + gpDy * gpDy);
+          if (mag > 1) {
+            gpDx /= mag;
+            gpDy /= mag;
+          }
+        }
+
+        if (gpDx !== 0 || gpDy !== 0) {
+          dx = gpDx;
+          dy = gpDy;
+        } else {
+          if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) dx = -1;
+          if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) dx = 1;
+          if (keysRef.current['w'] || keysRef.current['W'] || keysRef.current['ArrowUp']) dy = -1;
+          if (keysRef.current['s'] || keysRef.current['S'] || keysRef.current['ArrowDown']) dy = 1;
+
+          // Normalization
+          if (dx !== 0 && dy !== 0) {
+            const length = Math.sqrt(dx * dx + dy * dy);
+            dx /= length;
+            dy /= length;
+          }
         }
 
         const vx = dx * PLAYER_SPEED;
@@ -2183,6 +2288,7 @@ export const FarmGame: React.FC = () => {
         onToggleFullscreen={toggleFullscreen}
         onRestart={triggerRestart}
         onExit={stopGame}
+        gamepadConnected={gamepadConnected}
       />
 
       {/* Canvas container */}
@@ -2225,10 +2331,9 @@ export const FarmGame: React.FC = () => {
         />
       </div>
 
-      {/* Helper guide */}
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
         <div>
-          <span>Walk: </span><span style={{ color: 'var(--text-primary)' }}>WASD</span> or <span style={{ color: 'var(--text-primary)' }}>Arrows</span>
+          <span>Walk: </span><span style={{ color: 'var(--text-primary)' }}>WASD / Arrows</span> | <span>Action: </span><span style={{ color: 'var(--text-primary)' }}>Space (Use Item)</span> | <span>Interact: </span><span style={{ color: 'var(--text-primary)' }}>E (Harvest/Chest)</span> | <span>Controller: </span><span style={{ color: 'var(--text-primary)' }}>Left Stick / D-pad (Move), Button A (Use Item), Button X (Interact), LB / RB (Cycle slots)</span>
         </div>
         <div>
           <span>Farm Together: </span><span style={{ color: 'var(--neon-yellow)', fontWeight: 600 }}>Spawned at empty center plot</span>

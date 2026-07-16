@@ -1,5 +1,5 @@
 import React from 'react';
-import { Maximize, Minimize, Volume2, VolumeX } from 'lucide-react';
+import { Maximize, Minimize, Volume2, VolumeX, Gamepad2 } from 'lucide-react';
 
 interface GameHeaderProps {
   volume: number;
@@ -8,6 +8,7 @@ interface GameHeaderProps {
   onToggleFullscreen: () => void;
   onRestart: () => void;
   onExit: () => void;
+  gamepadConnected?: boolean;
 }
 
 export const GameHeader: React.FC<GameHeaderProps> = ({
@@ -17,6 +18,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   onToggleFullscreen,
   onRestart,
   onExit,
+  gamepadConnected,
 }) => {
   return (
     <div className="game-header-bar glass-panel" style={{ width: '100%', maxWidth: '900px' }}>
@@ -24,6 +26,13 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
         FARM TOGETHER: <span className="text-yellow">CO-OP SANDBOX</span>
       </h2>
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginLeft: 'auto' }}>
+
+        {gamepadConnected && (
+          <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)', gap: '0.4rem', animation: 'pulse 1.5s infinite alternate', display: 'flex', alignItems: 'center' }}>
+            <Gamepad2 size={14} />
+            <span>Controller Connected</span>
+          </div>
+        )}
 
         {/* Volume Control Widget */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.3rem 0.6rem' }}>
