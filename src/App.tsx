@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PeerProvider, usePeer } from './context/PeerContext';
 import { Lobby } from './components/Lobby';
 import { LandingPage } from './components/LandingPage';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { PlatformerGame } from './components/games/PlatformerGame';
 import { TopDownGame } from './components/games/TopDownGame';
 import { SnakeGame } from './components/games/SnakeGame';
@@ -28,9 +29,10 @@ const AppContent: React.FC = () => {
   const [chatInput, setChatInput] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [userWantsLanding, setUserWantsLanding] = useState<boolean>(true);
+  const [showPrivacy, setShowPrivacy] = useState<boolean>(false);
 
-  // Computed state: Show landing if user wants it AND they are not actively hosting/connected
-  const activeLanding = userWantsLanding && !isConnected && !peerId;
+  // Computed state: Show landing if user wants it AND they are not actively hosting/connected AND not looking at privacy policy
+  const activeLanding = userWantsLanding && !isConnected && !peerId && !showPrivacy;
 
   // Auto-scroll gameplay chat to bottom
   useEffect(() => {
@@ -57,6 +59,7 @@ const AppContent: React.FC = () => {
           onClick={() => {
             if (!isGameStarted) {
               setUserWantsLanding(true);
+              setShowPrivacy(false);
             }
           }}
         >
@@ -68,15 +71,29 @@ const AppContent: React.FC = () => {
           <nav className="nav-links">
             <button 
               className={`nav-link ${activeLanding ? 'active' : ''}`}
-              onClick={() => setUserWantsLanding(true)}
+              onClick={() => {
+                setUserWantsLanding(true);
+                setShowPrivacy(false);
+              }}
             >
               Mission
             </button>
             <button 
-              className={`nav-link ${!activeLanding ? 'active' : ''}`}
-              onClick={() => setUserWantsLanding(false)}
+              className={`nav-link ${!activeLanding && !showPrivacy ? 'active' : ''}`}
+              onClick={() => {
+                setUserWantsLanding(false);
+                setShowPrivacy(false);
+              }}
             >
               Arcade Lobby
+            </button>
+            <button 
+              className={`nav-link ${showPrivacy ? 'active' : ''}`}
+              onClick={() => {
+                setShowPrivacy(true);
+              }}
+            >
+              Privacy Policy
             </button>
           </nav>
         )}
@@ -99,7 +116,9 @@ const AppContent: React.FC = () => {
       {/* Main View Area */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {!isGameStarted ? (
-          activeLanding ? (
+          showPrivacy ? (
+            <PrivacyPolicy onClose={() => setShowPrivacy(false)} />
+          ) : activeLanding ? (
             <LandingPage onStartPlaying={(selectedGame) => {
               if (selectedGame) {
                 selectGame(selectedGame);

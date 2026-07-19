@@ -2,12 +2,112 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
 import { Download, Trash2, Palette, RotateCcw, Timer, Award, Maximize, Minimize, Paintbrush, PaintBucket, Undo, Redo } from 'lucide-react';
 
-const WORDS_BANK = [
-  'Dragon', 'Pikachu', 'Castle', 'Dinosaur', 'Car', 'Tree', 
-  'Spaceship', 'Robot', 'Burger', 'Guitar', 'Cat', 'Dolphin', 
-  'Shark', 'Sword', 'Sun', 'Moon', 'House', 'Airplane', 'Train', 
-  'Spider', 'Flower', 'Cactus', 'Pizza', 'Donut', 'Ice Cream',
-  'Octopus', 'Crown', 'Ghost', 'Alien', 'Wizard', 'Treasure Chest'
+const FUNNY_SENTENCES = [
+  [
+    'A dog',
+    'A dog on a horse',
+    'A dog on a horse in a grass field',
+    'A dog on a horse in a grass field eating a banana',
+    'A dog on a horse in a grass field eating a banana wearing a top hat'
+  ],
+  [
+    'An alien',
+    'An alien riding a unicycle',
+    'An alien riding a unicycle on the moon',
+    'An alien riding a unicycle on the moon holding an umbrella',
+    'An alien riding a unicycle on the moon holding an umbrella escaping a giant cat'
+  ],
+  [
+    'A penguin',
+    'A penguin wearing sunglasses',
+    'A penguin wearing sunglasses dancing in a disco',
+    'A penguin wearing sunglasses dancing in a disco with a rubber duck',
+    'A penguin wearing sunglasses dancing in a disco with a rubber duck under a disco ball'
+  ],
+  [
+    'A dinosaur',
+    'A dinosaur playing electric guitar',
+    'A dinosaur playing electric guitar on a volcano',
+    'A dinosaur playing electric guitar on a volcano eating a pizza slice',
+    'A dinosaur playing electric guitar on a volcano eating a pizza slice in space'
+  ],
+  [
+    'A wizard cat',
+    'A wizard cat casting a spell',
+    'A wizard cat casting a spell on a floating toaster',
+    'A wizard cat casting a spell on a floating toaster shooting laser beams',
+    'A wizard cat casting a spell on a floating toaster shooting laser beams inside a fishbowl'
+  ],
+  [
+    'A massive octopus',
+    'A massive octopus driving a red sports car',
+    'A massive octopus driving a red sports car through a bubble bath',
+    'A massive octopus driving a red sports car through a bubble bath eating ice cream',
+    'A massive octopus driving a red sports car through a bubble bath eating ice cream wearing a bowtie'
+  ],
+  [
+    'A shiny robot',
+    'A shiny robot doing hula hoop',
+    'A shiny robot doing hula hoop in a rainy jungle',
+    'A shiny robot doing hula hoop in a rainy jungle with a pet squirrel',
+    'A shiny robot doing hula hoop in a rainy jungle with a pet squirrel wearing scuba gear'
+  ],
+  [
+    'A grumpy potato',
+    'A grumpy potato weightlifting',
+    'A grumpy potato weightlifting on a sandy beach',
+    'A grumpy potato weightlifting on a sandy beach under a rainbow',
+    'A grumpy potato weightlifting on a sandy beach under a rainbow being chased by a seagull'
+  ],
+  [
+    'A fancy hamster',
+    'A fancy hamster flying a hot air balloon',
+    'A fancy hamster flying a hot air balloon made of a giant burger',
+    'A fancy hamster flying a hot air balloon made of a giant burger over a cheese mountain',
+    'A fancy hamster flying a hot air balloon made of a giant burger over a cheese mountain being chased by a winged teapot'
+  ],
+  [
+    'A flying pig',
+    'A flying pig wearing a jetpack',
+    'A flying pig wearing a jetpack zooming past a cloud',
+    'A flying pig wearing a jetpack zooming past a cloud made of cotton candy',
+    'A flying pig wearing a jetpack zooming past a cloud made of cotton candy chasing a donut'
+  ],
+  [
+    'A monkey',
+    'A monkey wearing a space helmet',
+    'A monkey wearing a space helmet floating in zero gravity',
+    'A monkey wearing a space helmet floating in zero gravity playing chess',
+    'A monkey wearing a space helmet floating in zero gravity playing chess with a banana'
+  ],
+  [
+    'A giant squirrel',
+    'A giant squirrel surfing on a slice of watermelon',
+    'A giant squirrel surfing on a slice of watermelon in the middle of the ocean',
+    'A giant squirrel surfing on a slice of watermelon in the middle of the ocean wearing a grass skirt',
+    'A giant squirrel surfing on a slice of watermelon in the middle of the ocean wearing a grass skirt chasing an acorn boat'
+  ],
+  [
+    'A tiny dragon',
+    'A tiny dragon sleeping in a teacup',
+    'A tiny dragon sleeping in a teacup under a blanket made of lettuce',
+    'A tiny dragon sleeping in a teacup under a blanket made of lettuce blowing tiny smoke rings',
+    'A tiny dragon sleeping in a teacup under a blanket made of lettuce blowing tiny smoke rings shaped like hearts'
+  ],
+  [
+    'A sleepy koala',
+    'A sleepy koala wearing a detective trench coat',
+    'A sleepy koala wearing a detective trench coat investigating a crime scene',
+    'A sleepy koala wearing a detective trench coat investigating a crime scene with a magnifying glass',
+    'A sleepy koala wearing a detective trench coat investigating a crime scene with a magnifying glass looking for lost cookies'
+  ],
+  [
+    'A happy frog',
+    'A happy frog doing yoga',
+    'A happy frog doing yoga on top of a giant mushroom',
+    'A happy frog doing yoga on top of a giant mushroom wearing pink sweatbands',
+    'A happy frog doing yoga on top of a giant mushroom wearing pink sweatbands balancing a cocktail'
+  ]
 ];
 
 interface DrawPoint {
@@ -150,6 +250,23 @@ export const ChaoticDrawingGame: React.FC = () => {
   const myRole = isHost ? 'host' : 'client';
   const isMyTurn = phase === 'drawing' && activeDrawer === myRole;
 
+  // Parse steps from selectedWord (supports backward compatibility with simple words)
+  const getParsedSteps = (rawWord: string): string[] => {
+    if (!rawWord) return [''];
+    try {
+      const parsed = JSON.parse(rawWord);
+      if (Array.isArray(parsed)) return parsed;
+      return [rawWord];
+    } catch (e) {
+      return [rawWord];
+    }
+  };
+
+  const steps = getParsedSteps(selectedWord);
+  const currentStepIndex = Math.min(steps.length - 1, Math.floor(turnCount / 2));
+  const currentPhrase = steps[currentStepIndex] || '';
+  const finalPhrase = steps[steps.length - 1] || '';
+
   // Initialize canvas background once on mount
   useEffect(() => {
     clearCanvasLocal();
@@ -202,17 +319,12 @@ export const ChaoticDrawingGame: React.FC = () => {
     }
   };
 
-  // Initialize word options (Host generates, Client waits)
+  // Initialize and select a random word immediately (Host generates and selects, Client waits)
   useEffect(() => {
     if (isHost && phase === 'selection') {
-      const shuffled = [...WORDS_BANK].sort(() => Math.random() - 0.5);
-      const chosen = shuffled.slice(0, 3);
-      setWordOptions(chosen);
-      setTimer(30);
-      sendGameData({
-        type: 'drawing_words_init',
-        words: chosen
-      });
+      const randomIdx = Math.floor(Math.random() * FUNNY_SENTENCES.length);
+      const chosenWord = JSON.stringify(FUNNY_SENTENCES[randomIdx]);
+      handleSelectWordLocal(chosenWord, 'host');
     }
   }, [isHost, phase]);
 
@@ -227,7 +339,7 @@ export const ChaoticDrawingGame: React.FC = () => {
         if (phase === 'selection') {
           if (next <= 0) {
             // Timeout selection: auto-select first word, Host draws first
-            const defaultWord = wordOptions[0] || 'Dragon';
+            const defaultWord = wordOptions[0] || JSON.stringify(FUNNY_SENTENCES[0]);
             handleSelectWordLocal(defaultWord, 'timeout');
             return 30;
           }
@@ -357,18 +469,7 @@ export const ChaoticDrawingGame: React.FC = () => {
     }
   }, [gameData, isHost]);
 
-  // Word selection trigger
-  const selectWord = (word: string) => {
-    if (phase !== 'selection') return;
-    if (isHost) {
-      handleSelectWordLocal(word, 'host');
-    } else {
-      sendGameData({
-        type: 'drawing_client_select',
-        word
-      });
-    }
-  };
+
 
   const handleSelectWordLocal = (word: string, selector: 'host' | 'client' | 'timeout') => {
     setSelectedWord(word);
@@ -605,7 +706,7 @@ export const ChaoticDrawingGame: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement('a');
-    link.download = `chaotic-drawing-${selectedWord.toLowerCase()}.png`;
+    link.download = `chaotic-drawing-${finalPhrase.toLowerCase().replace(/\s+/g, '-')}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   };
@@ -631,7 +732,7 @@ export const ChaoticDrawingGame: React.FC = () => {
           {phase === 'drawing' && (
             <div className="peer-badge" style={{ borderColor: 'var(--neon-purple)', color: 'var(--neon-purple)', gap: '0.4rem' }}>
               <Palette size={14} />
-              <span>Word: <strong>{selectedWord.toUpperCase()}</strong></span>
+              <span>Word: <strong>{currentPhrase.toUpperCase()}</strong></span>
             </div>
           )}
 
@@ -698,30 +799,16 @@ export const ChaoticDrawingGame: React.FC = () => {
             }}
           >
             <h3 className="font-display text-cyan" style={{ fontSize: '1.8rem', marginBottom: '0.5rem', textShadow: '0 0 10px rgba(0, 225, 255, 0.3)' }}>
-              CHOOSE A WORD TO DRAW
+              STARTING GAME...
             </h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-              Any player can select. The other player will start drawing!
-            </p>
-
-            <div style={{ display: 'flex', gap: '1.2rem', justifyContent: 'center' }}>
-              {wordOptions.map((word) => (
-                <button
-                  key={word}
-                  className="glow-btn-cyan font-display"
-                  onClick={() => selectWord(word)}
-                  style={{ padding: '1rem 2.5rem', fontSize: '1.1rem', letterSpacing: '1px' }}
-                >
-                  {word}
-                </button>
-              ))}
+            <div className="spinner" style={{ margin: '2rem 0' }}>
+              <div className="spinner-ring"></div>
+              <div className="spinner-ring"></div>
+              <div className="spinner-ring"></div>
             </div>
-
-            {wordOptions.length === 0 && (
-              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                Waiting for host to generate words...
-              </p>
-            )}
+            <p style={{ color: 'var(--text-secondary)' }}>
+              Selecting a random funny prompt...
+            </p>
           </div>
         )}
 
@@ -972,8 +1059,8 @@ export const ChaoticDrawingGame: React.FC = () => {
                 </span>
                 
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>WORD</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--neon-yellow)', marginBottom: '1.5rem', wordBreak: 'break-all', textAlign: 'center' }}>
-                  {selectedWord.toUpperCase()}
+                <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--neon-yellow)', marginBottom: '1.5rem', textAlign: 'center', textTransform: 'none' }}>
+                  {finalPhrase}
                 </span>
 
                 <button 
@@ -1020,7 +1107,7 @@ export const ChaoticDrawingGame: React.FC = () => {
 
           {/* Canvas Area */}
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-            {/* Turn Banner Overlay */}
+            {/* Prompt & Turn Overlay */}
             {phase === 'drawing' && (
               <div 
                 style={{ 
@@ -1028,25 +1115,58 @@ export const ChaoticDrawingGame: React.FC = () => {
                   top: '12px',
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  padding: '0.4rem 1.5rem',
-                  borderRadius: '20px',
-                  background: isMyTurn ? 'rgba(57, 255, 20, 0.15)' : 'rgba(255, 0, 160, 0.1)',
-                  border: isMyTurn ? '1px solid var(--neon-green)' : '1px solid var(--neon-magenta)',
-                  color: isMyTurn ? 'var(--neon-green)' : 'var(--neon-magenta)',
-                  fontSize: '0.75rem',
-                  fontWeight: 'bold',
-                  letterSpacing: '1px',
-                  boxShadow: isMyTurn ? '0 0 10px rgba(57, 255, 20, 0.2)' : '0 0 10px rgba(255, 0, 160, 0.1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
                   zIndex: 8,
                   pointerEvents: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  fontFamily: 'Orbitron, monospace'
+                  width: '90%',
+                  maxWidth: '500px'
                 }}
               >
-                <span className={`status-dot ${isMyTurn ? 'connected' : 'connecting'}`}></span>
-                {isMyTurn ? 'YOUR TURN TO DRAW!' : "PARTNER'S TURN..."}
+                {/* Turn Indicator */}
+                <div 
+                  style={{ 
+                    padding: '0.4rem 1.5rem',
+                    borderRadius: '20px',
+                    background: isMyTurn ? 'rgba(57, 255, 20, 0.15)' : 'rgba(255, 0, 160, 0.1)',
+                    border: isMyTurn ? '1px solid var(--neon-green)' : '1px solid var(--neon-magenta)',
+                    color: isMyTurn ? 'var(--neon-green)' : 'var(--neon-magenta)',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    letterSpacing: '1px',
+                    boxShadow: isMyTurn ? '0 0 10px rgba(57, 255, 20, 0.2)' : '0 0 10px rgba(255, 0, 160, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontFamily: 'Orbitron, monospace'
+                  }}
+                >
+                  <span className={`status-dot ${isMyTurn ? 'connected' : 'connecting'}`}></span>
+                  {isMyTurn ? 'YOUR TURN TO DRAW!' : "PARTNER'S TURN..."}
+                </div>
+
+                {/* Progressive Phrase Prompt */}
+                <div 
+                  style={{ 
+                    padding: '0.6rem 1.5rem',
+                    borderRadius: '8px',
+                    background: 'rgba(11, 12, 21, 0.85)',
+                    border: '1px solid var(--glass-border)',
+                    color: '#fff',
+                    fontSize: '0.95rem',
+                    textAlign: 'center',
+                    boxShadow: 'var(--glass-glow)',
+                    fontFamily: 'var(--font-sans)',
+                    lineHeight: '1.4'
+                  }}
+                >
+                  <span style={{ fontSize: '0.7rem', color: 'var(--neon-purple)', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', marginBottom: '2px' }}>
+                    Active Instruction (Step {currentStepIndex + 1}/5)
+                  </span>
+                  <span className="text-cyan" style={{ fontWeight: 600 }}>{currentPhrase}</span>
+                </div>
               </div>
             )}
 

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Peer } from 'peerjs';
 import type { DataConnection } from 'peerjs';
+import { checkNetworkHostability } from '../utils/networkCheck';
+import type { NetworkStatusType } from '../utils/networkCheck';
 
 export interface ChatMessage {
   id: string;
@@ -23,6 +25,8 @@ interface PeerContextType {
   isGameStarted: boolean;
   gameData: any;
   gameEvent: any;
+  networkStatus: NetworkStatusType;
+  networkDetails: string;
   resetGameEvent: () => void;
   hostGame: () => Promise<string>;
   joinGame: (targetId: string) => Promise<void>;
@@ -33,6 +37,7 @@ interface PeerContextType {
   startGame: () => void;
   stopGame: () => void;
   sendGameEvent: (data: any) => void;
+  recheckNetwork: () => Promise<void>;
 }
 
 const PeerContext = createContext<PeerContextType | undefined>(undefined);
@@ -58,10 +63,24 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
   const [gameData, setGameData] = useState<any>(null);
   const [gameEvent, setGameEvent] = useState<any>(null);
+  const [networkStatus, setNetworkStatus] = useState<NetworkStatusType>('checking');
+  const [networkDetails, setNetworkDetails] = useState<string>('Initializing test...');
 
   const peerRef = useRef<Peer | null>(null);
   const connRef = useRef<DataConnection | null>(null);
   const pingIntervalRef = useRef<any>(null);
+
+  const recheckNetwork = async () => {
+    setNetworkStatus('checking');
+    setNetworkDetails('Gathering WebRTC capability data...');
+    const result = await checkNetworkHostability();
+    setNetworkStatus(result.status);
+    setNetworkDetails(result.details);
+  };
+
+  useEffect(() => {
+    recheckNetwork();
+  }, []);
 
   // Clean up PeerJS instances on unmount
   useEffect(() => {
@@ -372,6 +391,8 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isGameStarted,
         gameData,
         gameEvent,
+        networkStatus,
+        networkDetails,
         resetGameEvent,
         hostGame,
         joinGame,
@@ -382,6 +403,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startGame,
         stopGame,
         sendGameEvent,
+        recheckNetwork,
       }}
     >
       {children}

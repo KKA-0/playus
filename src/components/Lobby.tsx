@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePeer } from '../context/PeerContext';
 import { 
   Play, Copy, Check, MessageSquare, Users, Wifi, 
-  Gamepad2, LogOut, ArrowRight, ShieldAlert
+  Gamepad2, LogOut, ArrowRight, ShieldAlert, RefreshCw, CheckCircle2
 } from 'lucide-react';
 
 export const Lobby: React.FC = () => {
@@ -21,6 +21,9 @@ export const Lobby: React.FC = () => {
     sendMessage,
     selectGame,
     startGame,
+    networkStatus,
+    networkDetails,
+    recheckNetwork,
   } = usePeer();
 
   const [inputCode, setInputCode] = useState<string>('');
@@ -81,8 +84,88 @@ export const Lobby: React.FC = () => {
             </div>
             <h2>Host a Lobby</h2>
             <p>Create a new co-op session and get a shareable code to invite your friend.</p>
-            <button className="glow-btn-cyan font-display" onClick={handleHost} style={{ width: '100%', padding: '0.85rem' }}>
-              Create Lobby
+
+            {/* Network Hostability Check */}
+            <div className="network-test-section" title={networkDetails} style={{ marginBottom: '1.25rem', marginTop: '0.5rem', width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {networkStatus === 'checking' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', color: 'var(--neon-yellow)', fontSize: '0.85rem' }}>
+                  <RefreshCw size={14} className="spin" />
+                  <span>Testing hosting readiness...</span>
+                </div>
+              )}
+
+              {networkStatus === 'hostable' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--neon-green)', fontSize: '0.85rem', fontWeight: 600 }}>
+                    <CheckCircle2 size={16} />
+                    <span>Lobby Hostable (UDP Link Open)</span>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    Direct peer connections are supported.
+                  </span>
+                </div>
+              )}
+
+              {networkStatus === 'blocked' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.75rem', background: 'rgba(255, 0, 127, 0.08)', border: '1px solid var(--neon-magenta)', borderRadius: '8px', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--neon-magenta)', fontSize: '0.85rem', fontWeight: 600 }}>
+                    <ShieldAlert size={16} />
+                    <span>Strict Firewall Alert</span>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.3, textAlign: 'left' }}>
+                    UDP/STUN traffic is blocked. Others will not be able to connect if you host. **Ask your friend to host the lobby instead.**
+                  </p>
+                </div>
+              )}
+
+              {networkStatus === 'unknown' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    <ShieldAlert size={16} />
+                    <span>NAT Status: Unknown</span>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    Could not verify network capabilities.
+                  </span>
+                </div>
+              )}
+
+              {/* Retest Link */}
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button 
+                  type="button" 
+                  onClick={(e) => { e.stopPropagation(); recheckNetwork(); }} 
+                  disabled={networkStatus === 'checking'}
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: 'var(--neon-cyan)', 
+                    fontSize: '0.75rem', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.25rem',
+                    opacity: networkStatus === 'checking' ? 0.5 : 0.8,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
+                  onMouseOut={(e) => e.currentTarget.style.opacity = '0.8'}
+                >
+                  <RefreshCw size={10} className={networkStatus === 'checking' ? 'spin' : ''} />
+                  <span>Re-test Network</span>
+                </button>
+              </div>
+            </div>
+
+            <button 
+              className="glow-btn-cyan font-display" 
+              onClick={handleHost} 
+              style={{ width: '100%', padding: '0.85rem' }}
+              disabled={networkStatus === 'checking'}
+            >
+              {networkStatus === 'blocked' ? 'Host Anyway (Not Recommended)' : 'Create Lobby'}
             </button>
           </div>
 
