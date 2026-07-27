@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 
 interface LandingPageProps {
-  onStartPlaying: (selectedGame?: 'platformer' | 'shooter' | 'snake' | 'chained' | 'farm' | 'drawing' | null) => void;
+  onStartPlaying: (selectedGame?: 'platformer' | 'shooter' | 'chained' | 'farm' | null) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
@@ -122,17 +122,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
             </div>
           </div>
 
-          <div className="game-option-card snake" onClick={() => onStartPlaying('snake')}>
-            <div className="game-card-img">
-              <Gamepad2 className="game-card-icon" />
-            </div>
-            <div className="game-card-content">
-              <h3 className="game-card-title">Cyber Slither</h3>
-              <p className="game-card-desc">Slither through neon pellet fields, grow your snake, and work together to dominate computer bots without crashing.</p>
-              <span className="game-card-players">Co-op Snake Arena</span>
-            </div>
-          </div>
-
           <div className="game-option-card chained" onClick={() => onStartPlaying('chained')}>
             <div className="game-card-img">
               <Gamepad2 className="game-card-icon" />
@@ -152,17 +141,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
               <h3 className="game-card-title">Farm Together</h3>
               <p className="game-card-desc">Choose a character and explore a cozy 2D farm together in a classic GBA-style top-down layout.</p>
               <span className="game-card-players">Co-op Farm Exploration</span>
-            </div>
-          </div>
-
-          <div className="game-option-card drawing" onClick={() => onStartPlaying('drawing')}>
-            <div className="game-card-img">
-              <Gamepad2 className="game-card-icon" />
-            </div>
-            <div className="game-card-content">
-              <h3 className="game-card-title">Chaotic Drawing</h3>
-              <p className="game-card-desc">Draw a chosen word together! Take turns drawing on a synced canvas that alternates every 10 seconds. Create a masterpiece together!</p>
-              <span className="game-card-players">Co-op Alternating Drawing</span>
             </div>
           </div>
         </div>

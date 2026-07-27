@@ -21,8 +21,10 @@ interface PeerContextType {
   isHost: boolean;
   messages: ChatMessage[];
   ping: number;
-  activeGame: 'platformer' | 'shooter' | 'snake' | 'chained' | 'farm' | 'drawing' | null;
+  activeGame: 'platformer' | 'shooter' | 'chained' | 'farm' | null;
   isGameStarted: boolean;
+  level: number;
+  setLevel: React.Dispatch<React.SetStateAction<number>>;
   gameData: any;
   gameEvent: any;
   networkStatus: NetworkStatusType;
@@ -33,7 +35,7 @@ interface PeerContextType {
   disconnect: () => void;
   sendMessage: (text: string) => void;
   sendGameData: (data: any) => void;
-  selectGame: (game: 'platformer' | 'shooter' | 'snake' | 'chained' | 'farm' | 'drawing' | null) => void;
+  selectGame: (game: 'platformer' | 'shooter' | 'chained' | 'farm' | null) => void;
   startGame: () => void;
   stopGame: () => void;
   sendGameEvent: (data: any) => void;
@@ -59,8 +61,9 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isHost, setIsHost] = useState<boolean>(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [ping, setPing] = useState<number>(0);
-  const [activeGame, setActiveGame] = useState<'platformer' | 'shooter' | 'snake' | 'chained' | 'farm' | 'drawing' | null>(null);
+  const [activeGame, setActiveGame] = useState<'platformer' | 'shooter' | 'chained' | 'farm' | null>(null);
   const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
+  const [level, setLevel] = useState<number>(1);
   const [gameData, setGameData] = useState<any>(null);
   const [gameEvent, setGameEvent] = useState<any>(null);
   const [networkStatus, setNetworkStatus] = useState<NetworkStatusType>('checking');
@@ -103,6 +106,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setIsConnected(false);
     setIsGameStarted(false);
+    setLevel(1);
     setPing(0);
   };
 
@@ -180,6 +184,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         case 'stop_game':
           setIsGameStarted(false);
+          setLevel(1);
           break;
 
         case 'game_sync':
@@ -332,7 +337,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Select game (Host authoritative, client can request but let's make host broadcast)
-  const selectGame = (game: 'platformer' | 'shooter' | 'snake' | 'chained' | 'farm' | 'drawing' | null) => {
+  const selectGame = (game: 'platformer' | 'shooter' | 'chained' | 'farm' | null) => {
     setActiveGame(game);
     if (connRef.current && connRef.current.open) {
       connRef.current.send({
@@ -353,6 +358,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const stopGame = () => {
     setIsGameStarted(false);
+    setLevel(1);
     if (connRef.current && connRef.current.open) {
       connRef.current.send({
         type: 'stop_game',
@@ -389,6 +395,8 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ping,
         activeGame,
         isGameStarted,
+        level,
+        setLevel,
         gameData,
         gameEvent,
         networkStatus,

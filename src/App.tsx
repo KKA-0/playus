@@ -5,10 +5,8 @@ import { LandingPage } from './components/LandingPage';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { PlatformerGame } from './components/games/PlatformerGame';
 import { TopDownGame } from './components/games/TopDownGame';
-import { SnakeGame } from './components/games/SnakeGame';
 import { ChainedGame } from './components/games/ChainedGame';
 import { FarmGame } from './components/games/FarmGame';
-import { ChaoticDrawingGame } from './components/games/ChaoticDrawingGame';
 import { 
   MessageSquare, ArrowRight, Gamepad, HelpCircle 
 } from 'lucide-react';
@@ -23,7 +21,8 @@ const AppContent: React.FC = () => {
     targetId,
     messages,
     sendMessage,
-    selectGame
+    selectGame,
+    level
   } = usePeer();
 
   const [chatInput, setChatInput] = useState<string>('');
@@ -134,10 +133,8 @@ const AppContent: React.FC = () => {
             <div className="game-main-content">
               {activeGame === 'platformer' && <PlatformerGame />}
               {activeGame === 'shooter' && <TopDownGame />}
-              {activeGame === 'snake' && <SnakeGame />}
               {activeGame === 'chained' && <ChainedGame />}
               {activeGame === 'farm' && <FarmGame />}
-              {activeGame === 'drawing' && <ChaoticDrawingGame />}
             </div>
 
             {/* Sidebar Column on right */}
@@ -172,8 +169,12 @@ const AppContent: React.FC = () => {
                 ) : activeGame === 'shooter' ? (
                   <ul className="controls-list">
                     <li className="control-item">
-                      <span className="control-label">Move Around</span>
-                      <span className="control-key">WASD / Arrows</span>
+                      <span className="control-label">
+                        {level === 2 ? 'Move Horizontally' : 'Move Around'}
+                      </span>
+                      <span className="control-key">
+                        {level === 2 ? 'A, D / ←, →' : 'WASD / Arrows'}
+                      </span>
                     </li>
                     <li className="control-item">
                       <span className="control-label">Aim Turret</span>
@@ -187,25 +188,24 @@ const AppContent: React.FC = () => {
                       <span className="control-label">Health Pool</span>
                       <span className="text-magenta">❤️ Shared</span>
                     </li>
-                  </ul>
-                ) : activeGame === 'snake' ? (
-                  <ul className="controls-list">
-                    <li className="control-item">
-                      <span className="control-label">Steer Snake</span>
-                      <span className="control-key">Mouse Move</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Speed Boost</span>
-                      <span className="control-key">Left Click / Space</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Target Score</span>
-                      <span className="text-green">🏆 1,500 pts</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Avoid Crash</span>
-                      <span className="text-magenta">💥 Bots & Walls</span>
-                    </li>
+                    {level === 2 && (
+                      <li className="control-item">
+                        <span className="control-label">Enemy Spawns</span>
+                        <span className="text-yellow">⬆️ Top Only</span>
+                      </li>
+                    )}
+                    {level === 3 && (
+                      <>
+                        <li className="control-item">
+                          <span className="control-label">Map Size</span>
+                          <span className="text-cyan">🌐 3x Expanded</span>
+                        </li>
+                        <li className="control-item">
+                          <span className="control-label">Safe Zone</span>
+                          <span className="text-green">⭕ Get Inside!</span>
+                        </li>
+                      </>
+                    )}
                   </ul>
                 ) : activeGame === 'chained' ? (
                   <ul className="controls-list">
@@ -224,37 +224,6 @@ const AppContent: React.FC = () => {
                     <li className="control-item">
                       <span className="control-label">Goal</span>
                       <span className="text-green">🏁 Exit Portal</span>
-                    </li>
-                  </ul>
-                ) : activeGame === 'drawing' ? (
-                  <ul className="controls-list">
-                    <li className="control-item">
-                      <span className="control-label">Draw on Canvas</span>
-                      <span className="control-key">Left Click + Drag</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Brush Colors</span>
-                      <span className="control-key">Neon Palette</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Paint Bucket / Fill</span>
-                      <span className="control-key">Click to Flood Fill</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Undo Last Action</span>
-                      <span className="control-key">Ctrl + Z</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Redo Last Action</span>
-                      <span className="control-key">Ctrl + Y</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Turn Duration</span>
-                      <span className="text-yellow">⏱️ 30 seconds</span>
-                    </li>
-                    <li className="control-item">
-                      <span className="control-label">Chances</span>
-                      <span className="text-green">5 Turns Each</span>
                     </li>
                   </ul>
                 ) : (

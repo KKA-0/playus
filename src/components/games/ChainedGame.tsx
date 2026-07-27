@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
-import { Shield, Flag, Award, Maximize, Minimize, Volume2, VolumeX, Gamepad2 } from 'lucide-react';
+import { Shield, Flag, Award, Maximize, Minimize, Volume2, VolumeX, Gamepad2, ArrowLeft, ArrowRight, ArrowUp, Smartphone } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const CANVAS_WIDTH = 800;
@@ -120,6 +120,66 @@ export const ChainedGame: React.FC = () => {
   const [gameWon, setGameWon] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
+
+  // Mobile Detection & 3-Part Touch Controls State
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const userAgentMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent);
+    const touchCapable = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const smallScreen = window.innerWidth <= 1024;
+    return userAgentMobile || (touchCapable && smallScreen);
+  });
+
+  const mobileTouchRef = useRef<{ left: boolean; jump: boolean; right: boolean }>({
+    left: false,
+    jump: false,
+    right: false
+  });
+
+  const [activeTouches, setActiveTouches] = useState<{ left: boolean; middle: boolean; right: boolean }>({
+    left: false,
+    middle: false,
+    right: false
+  });
+
+  // Track window resize to re-check mobile device state
+  useEffect(() => {
+    const handleResize = () => {
+      const userAgentMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent);
+      const touchCapable = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      const smallScreen = window.innerWidth <= 1024;
+      setIsMobile(userAgentMobile || (touchCapable && smallScreen));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handler to split touch area into 3 screen zones: Left (0-33%), Middle Jump (33-66%), Right (66-100%)
+  const handleTouchUpdate = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const container = e.currentTarget.getBoundingClientRect();
+    let left = false;
+    let middle = false;
+    let right = false;
+
+    for (let i = 0; i < e.touches.length; i++) {
+      const touch = e.touches[i];
+      const relativeX = touch.clientX - container.left;
+      const width = container.width;
+
+      if (relativeX < width / 3) {
+        left = true;
+      } else if (relativeX < (width * 2) / 3) {
+        middle = true;
+      } else {
+        right = true;
+      }
+    }
+
+    mobileTouchRef.current = { left, jump: middle, right };
+    setActiveTouches({ left, middle, right });
+  };
 
   // Audio state
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -617,6 +677,7 @@ export const ChainedGame: React.FC = () => {
 
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       const gp = Array.from(gamepads).find((g) => g !== null);
+      const touchInputs = mobileTouchRef.current;
 
       if (gp) {
         const deadzone = 0.2;
@@ -629,6 +690,7 @@ export const ChainedGame: React.FC = () => {
           keysRef.current['a'] ||
           keysRef.current['A'] ||
           keysRef.current['ArrowLeft'] ||
+          touchInputs.left ||
           (gp.buttons[14] && gp.buttons[14].pressed)
         ) {
           inputVx = -WALK_SPEED;
@@ -636,6 +698,7 @@ export const ChainedGame: React.FC = () => {
           keysRef.current['d'] ||
           keysRef.current['D'] ||
           keysRef.current['ArrowRight'] ||
+          touchInputs.right ||
           (gp.buttons[15] && gp.buttons[15].pressed)
         ) {
           inputVx = WALK_SPEED;
@@ -649,10 +712,20 @@ export const ChainedGame: React.FC = () => {
           gamepadJump = true;
         }
       } else {
-        if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) {
+        if (
+          keysRef.current['a'] ||
+          keysRef.current['A'] ||
+          keysRef.current['ArrowLeft'] ||
+          touchInputs.left
+        ) {
           inputVx = -WALK_SPEED;
         }
-        if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) {
+        if (
+          keysRef.current['d'] ||
+          keysRef.current['D'] ||
+          keysRef.current['ArrowRight'] ||
+          touchInputs.right
+        ) {
           inputVx = WALK_SPEED;
         }
       }
@@ -662,7 +735,8 @@ export const ChainedGame: React.FC = () => {
           keysRef.current['W'] ||
           keysRef.current['ArrowUp'] ||
           keysRef.current[' '] ||
-          gamepadJump) &&
+          gamepadJump ||
+          touchInputs.jump) &&
         !local.isJumping &&
         local.grounded
       ) {
@@ -1140,6 +1214,13 @@ export const ChainedGame: React.FC = () => {
             </div>
           )}
 
+          {isMobile && (
+            <div className="peer-badge" style={{ borderColor: 'var(--neon-purple)', color: 'var(--neon-purple)', gap: '0.4rem' }}>
+              <Smartphone size={14} />
+              <span>Mobile Touch Controls Active</span>
+            </div>
+          )}
+
           {/* Volume Control Widget */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.3rem 0.6rem' }}>
             {volume === 0 ? <VolumeX size={14} className="text-muted" /> : <Volume2 size={14} style={{ color: 'var(--neon-purple)' }} />}
@@ -1177,6 +1258,44 @@ export const ChainedGame: React.FC = () => {
       <div className="canvas-container" style={{ position: 'relative' }}>
         <canvas ref={canvasRef} width={isFullscreen ? 1920 : CANVAS_WIDTH} height={isFullscreen ? 1080 : CANVAS_HEIGHT} />
 
+        {/* 3-Part Screen Mobile Touch Controls Overlay */}
+        {isMobile && !gameOver && !gameWon && (
+          <div
+            className="mobile-touch-overlay"
+            onTouchStart={handleTouchUpdate}
+            onTouchMove={handleTouchUpdate}
+            onTouchEnd={handleTouchUpdate}
+            onTouchCancel={handleTouchUpdate}
+          >
+            <div className={`mobile-touch-zone zone-left ${activeTouches.left ? 'active' : ''}`}>
+              <div className="touch-zone-content">
+                <div className="touch-zone-icon">
+                  <ArrowLeft size={24} />
+                </div>
+                <span className="touch-zone-label">Move Left</span>
+              </div>
+            </div>
+
+            <div className={`mobile-touch-zone zone-middle ${activeTouches.middle ? 'active' : ''}`}>
+              <div className="touch-zone-content">
+                <div className="touch-zone-icon">
+                  <ArrowUp size={24} />
+                </div>
+                <span className="touch-zone-label">Jump</span>
+              </div>
+            </div>
+
+            <div className={`mobile-touch-zone zone-right ${activeTouches.right ? 'active' : ''}`}>
+              <div className="touch-zone-content">
+                <div className="touch-zone-icon">
+                  <ArrowRight size={24} />
+                </div>
+                <span className="touch-zone-label">Move Right</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Victory Screen Overlay */}
         {gameWon && (
           <div className="canvas-overlay">
@@ -1202,7 +1321,11 @@ export const ChainedGame: React.FC = () => {
       {/* Helper Controls bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
         <div>
-          <span>Walk: </span><span style={{ color: 'var(--text-primary)' }}>A / D</span> or <span style={{ color: 'var(--text-primary)' }}>← / →</span> | <span>Jump: </span><span style={{ color: 'var(--text-primary)' }}>W / Space</span> or <span style={{ color: 'var(--text-primary)' }}>↑</span> | <span>Controller: </span><span style={{ color: 'var(--text-primary)' }}>Left Stick / D-pad (Move) & Button A / D-pad Up (Jump)</span>
+          {isMobile ? (
+            <span>Touch Controls: <span style={{ color: 'var(--text-primary)' }}>Left Screen (Move Left)</span> | <span style={{ color: 'var(--text-primary)' }}>Middle Screen (Jump)</span> | <span style={{ color: 'var(--text-primary)' }}>Right Screen (Move Right)</span></span>
+          ) : (
+            <span>Walk: <span style={{ color: 'var(--text-primary)' }}>A / D</span> or <span style={{ color: 'var(--text-primary)' }}>← / →</span> | Jump: <span style={{ color: 'var(--text-primary)' }}>W / Space</span> or <span style={{ color: 'var(--text-primary)' }}>↑</span> | Controller: <span style={{ color: 'var(--text-primary)' }}>Left Stick / D-pad (Move) & Button A / D-pad Up (Jump)</span></span>
+          )}
         </div>
         <div>
           <span>Rule: </span><span style={{ color: 'var(--neon-purple)', fontWeight: 600 }}>Stay within 140px chain limit</span>

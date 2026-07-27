@@ -309,21 +309,6 @@ export const Lobby: React.FC = () => {
             </div>
 
             <div 
-              className={`game-option-card snake ${activeGame === 'snake' ? 'selected' : ''}`}
-              onClick={() => isHost && selectGame('snake')}
-              style={{ pointerEvents: isHost ? 'auto' : 'none' }}
-            >
-              <div className="game-card-img">
-                <Gamepad2 className="game-card-icon" />
-              </div>
-              <div className="game-card-content">
-                <h3 className="game-card-title">Cyber Slither</h3>
-                <p className="game-card-desc">Slither around, eat glowing pellets to grow, and speed boost with left click. Avoid crashing into AI opponent bots or the screen boundaries!</p>
-                <span className="game-card-players">Co-op Snake Arena</span>
-              </div>
-            </div>
-
-            <div 
               className={`game-option-card chained ${activeGame === 'chained' ? 'selected' : ''}`}
               onClick={() => isHost && selectGame('chained')}
               style={{ pointerEvents: isHost ? 'auto' : 'none' }}
@@ -352,21 +337,6 @@ export const Lobby: React.FC = () => {
                 <span className="game-card-players">Co-op Farm Exploration</span>
               </div>
             </div>
-
-            <div 
-              className={`game-option-card drawing ${activeGame === 'drawing' ? 'selected' : ''}`}
-              onClick={() => isHost && selectGame('drawing')}
-              style={{ pointerEvents: isHost ? 'auto' : 'none' }}
-            >
-              <div className="game-card-img">
-                <Gamepad2 className="game-card-icon" />
-              </div>
-              <div className="game-card-content">
-                <h3 className="game-card-title">Chaotic Drawing</h3>
-                <p className="game-card-desc">Draw a chosen word together! Take turns drawing on a synced canvas that alternates every 10 seconds. Create a masterpiece together!</p>
-                <span className="game-card-players">Co-op Alternating Drawing</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -378,10 +348,8 @@ export const Lobby: React.FC = () => {
               <span className="font-display" style={{ fontWeight: 700, color: activeGame ? 'var(--neon-green)' : 'var(--text-muted)' }}>
                 {activeGame === 'platformer' && 'Gem Hunters (Platformer)'}
                 {activeGame === 'shooter' && 'Arena Survival (Top-Down)'}
-                {activeGame === 'snake' && 'Cyber Slither (Snake Arena)'}
                 {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
                 {activeGame === 'farm' && 'Farm Together (Top-Down GBA)'}
-                {activeGame === 'drawing' && 'Chaotic Drawing (Alternating Canvas)'}
                 {!activeGame && 'No Game Selected'}
               </span>
             </div>
