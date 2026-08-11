@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
 import { Gamepad2, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Shield, Flag, Award, Maximize, Minimize, Volume2, VolumeX, ArrowLeft, ArrowRight, ArrowUp, Smartphone } from 'lucide-react';
+import { Volume2, VolumeX } from 'lucide-react';
 
 // Game constants
 const CANVAS_WIDTH = 800;
