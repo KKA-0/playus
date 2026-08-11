@@ -151,15 +151,15 @@ const AppContent: React.FC = () => {
                   <ul className="controls-list">
                     <li className="control-item">
                       <span className="control-label">Move Left</span>
-                      <span className="control-key">A / ←</span>
+                      <span className="control-key">A / ← / Stick / D-Pad</span>
                     </li>
                     <li className="control-item">
                       <span className="control-label">Move Right</span>
-                      <span className="control-key">D / →</span>
+                      <span className="control-key">D / → / Stick / D-Pad</span>
                     </li>
                     <li className="control-item">
                       <span className="control-label">Jump</span>
-                      <span className="control-key">W / Space</span>
+                      <span className="control-key">W / Space / A / ↑</span>
                     </li>
                     <li className="control-item">
                       <span className="control-label">Exit Key</span>

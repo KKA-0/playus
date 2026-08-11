@@ -304,14 +304,24 @@ export const TopDownGame: React.FC = () => {
         return;
       }
 
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+      const keyLower = e.key.toLowerCase();
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'w', 'a', 's', 'd'].includes(keyLower)) {
         e.preventDefault();
       }
       keysRef.current[e.key] = true;
+      keysRef.current[keyLower] = true;
+      keysRef.current[e.code] = true;
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      const keyLower = e.key.toLowerCase();
       keysRef.current[e.key] = false;
+      keysRef.current[keyLower] = false;
+      keysRef.current[e.code] = false;
+    };
+
+    const handleBlur = () => {
+      keysRef.current = {};
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -335,6 +345,7 @@ export const TopDownGame: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mouseup', handleMouseUp);
@@ -342,6 +353,7 @@ export const TopDownGame: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);

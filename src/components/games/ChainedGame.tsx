@@ -422,22 +422,34 @@ export const ChainedGame: React.FC = () => {
         return;
       }
 
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+      const keyLower = e.key.toLowerCase();
+      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'w', 'a', 's', 'd'].includes(keyLower)) {
         e.preventDefault();
       }
       keysRef.current[e.key] = true;
+      keysRef.current[keyLower] = true;
+      keysRef.current[e.code] = true;
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      const keyLower = e.key.toLowerCase();
       keysRef.current[e.key] = false;
+      keysRef.current[keyLower] = false;
+      keysRef.current[e.code] = false;
+    };
+
+    const handleBlur = () => {
+      keysRef.current = {};
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
   }, [isHost]);
 
