@@ -1314,7 +1314,7 @@ export const ChainedGame: React.FC = () => {
             <Award size={64} className="text-yellow" style={{ marginBottom: '1rem', filter: 'drop-shadow(0 0 10px var(--neon-yellow))' }} />
             <h2 className="overlay-title font-display text-green" style={{ fontSize: '3.5rem', letterSpacing: '3px' }}>ASCENDED!</h2>
             <p style={{ color: 'var(--neon-green)', fontWeight: 700, fontSize: '1.2rem' }}>You completed the climb together!</p>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '-0.5rem' }}>Perfect cooperation and chain physics control.</p>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '-0.5rem' }}>are you ready for the next level</p>
 
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
               {isHost && (

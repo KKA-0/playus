@@ -23,6 +23,13 @@ const TILE_DOOR = 4;     // Exit Security Door
 const TILE_GATE = 5;     // Pressure Gate
 const TILE_SWITCH = 6;   // Pressure Switch
 
+const brickImg = new Image();
+brickImg.src = 'gateIt/ch1-brick.png';
+const gateSwtichOFFImg = new Image();
+gateSwtichOFFImg.src = 'gateIt/gateSwitchOFF.png';
+const gateSwtichONImg = new Image();
+gateSwtichONImg.src = 'gateIt/gateSwitchON.png';
+
 // 3 Levels Map Data (12 rows x 20 cols)
 // 1 = solid block, 2 = spikes, 3 = door terminal, 4 = exit door, 5 = gate, 6 = switch
 const LEVELS = [
@@ -35,24 +42,24 @@ const LEVELS = [
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 6, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 4, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 3, 0, 1],
-    [1, 0, 0, 0, 6, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 1], // Switch at col 4 and return switch at col 12
+    [1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 3, 1], // Switch at col 4 and return switch at col 12
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
   // LEVEL 2: Double split paths
   [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 4, 1],
-    [1, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 6, 0, 1, 1, 1, 0, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 4, 1],
+    [1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, , 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+    [1, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 3, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
@@ -61,13 +68,13 @@ const LEVELS = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1],
-    [1, 0, 0, 0, 6, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 5, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
+    [1, 0, 0, 0, 6, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 5, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 3, 0, 1],
-    [1, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 0, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ]
@@ -506,6 +513,75 @@ export const PlatformerGame: React.FC = () => {
       animationId = requestAnimationFrame(gameLoop);
     };
 
+    // AABB rectangle overlap helper
+    const checkRectOverlap = (
+      ax: number, ay: number, aw: number, ah: number,
+      bx: number, by: number, bw: number, bh: number
+    ) => {
+      return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+    };
+
+    // One-way "stand on top" collision so a player can use the other player as a platform.
+    // Only resolves when the moving player is falling (or stationary) onto the other
+    // player's head - it never blocks movement from the side or from below.
+    const checkPlayerOnPlayerCollision = (p: PlayerState, other: PlayerState) => {
+      const LANDING_TOLERANCE = 14; // how many px of overlap still counts as "landing" on the head
+      const HORIZONTAL_MARGIN = 4;  // shrink the landing zone slightly so it feels fair
+
+      const overlapsX =
+        p.x + p.width > other.x + HORIZONTAL_MARGIN &&
+        p.x < other.x + other.width - HORIZONTAL_MARGIN;
+
+      if (!overlapsX) return;
+
+      const feetY = p.y + p.height;
+      const otherTopY = other.y;
+
+      // Only "land" when falling/stationary and feet are close to the other player's head
+      if (p.vy >= 0 && feetY >= otherTopY && feetY <= otherTopY + LANDING_TOLERANCE) {
+        p.y = otherTopY - p.height;
+        p.vy = 0;
+        p.isJumping = false;
+      }
+    };
+
+    const checkTileCollisions = (p: PlayerState, map: number[][], dir: 'x' | 'y') => {
+      const EPS = 0.01;
+      const left = Math.floor((p.x + EPS) / TILE_SIZE);
+      const right = Math.floor((p.x + p.width - EPS) / TILE_SIZE);
+      const top = Math.floor((p.y + EPS) / TILE_SIZE);
+      const bottom = Math.floor((p.y + p.height - EPS) / TILE_SIZE);
+
+      // Check collision in bounding boxes
+      for (let r = top; r <= bottom; r++) {
+        for (let c = left; c <= right; c++) {
+          if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+            const tile = map[r][c];
+
+            // Collide with solid blocks, or closed gates
+            if (tile === TILE_SOLID || (tile === TILE_GATE && !levelStateRef.current.gateOpen)) {
+              if (dir === 'x') {
+                if (p.vx > 0) {
+                  p.x = c * TILE_SIZE - p.width;
+                } else if (p.vx < 0) {
+                  p.x = (c + 1) * TILE_SIZE;
+                }
+              } else {
+                if (p.vy > 0) {
+                  p.y = r * TILE_SIZE - p.height;
+                  p.vy = 0;
+                  p.isJumping = false;
+                } else if (p.vy < 0) {
+                  p.y = (r + 1) * TILE_SIZE;
+                  p.vy = 0;
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+
     // Physics Engine
     const updatePhysics = () => {
       const p = localPlayerRef.current;
@@ -612,6 +688,9 @@ export const PlatformerGame: React.FC = () => {
       p.isJumping = true; // Assume jumping/falling unless Y collision sets grounded
       checkTileCollisions(p, map, 'y');
 
+      // Let this player stand on top of the other player, like a platform
+      checkPlayerOnPlayerCollision(p, remotePlayerRef.current);
+
       // Update coyote time if grounded
       if (!p.isJumping) {
         coyoteTimerRef.current = 6; // 6 frames coyote time window
@@ -715,51 +794,6 @@ export const PlatformerGame: React.FC = () => {
       }
     };
 
-    // AABB rectangle overlap helper
-    const checkRectOverlap = (
-      ax: number, ay: number, aw: number, ah: number,
-      bx: number, by: number, bw: number, bh: number
-    ) => {
-      return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
-    };
-
-    const checkTileCollisions = (p: PlayerState, map: number[][], dir: 'x' | 'y') => {
-      const EPS = 0.01;
-      const left = Math.floor((p.x + EPS) / TILE_SIZE);
-      const right = Math.floor((p.x + p.width - EPS) / TILE_SIZE);
-      const top = Math.floor((p.y + EPS) / TILE_SIZE);
-      const bottom = Math.floor((p.y + p.height - EPS) / TILE_SIZE);
-
-      // Check collision in bounding boxes
-      for (let r = top; r <= bottom; r++) {
-        for (let c = left; c <= right; c++) {
-          if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-            const tile = map[r][c];
-
-            // Collide with solid blocks, or closed gates
-            if (tile === TILE_SOLID || (tile === TILE_GATE && !levelStateRef.current.gateOpen)) {
-              if (dir === 'x') {
-                if (p.vx > 0) {
-                  p.x = c * TILE_SIZE - p.width;
-                } else if (p.vx < 0) {
-                  p.x = (c + 1) * TILE_SIZE;
-                }
-              } else {
-                if (p.vy > 0) {
-                  p.y = r * TILE_SIZE - p.height;
-                  p.vy = 0;
-                  p.isJumping = false;
-                } else if (p.vy < 0) {
-                  p.y = (r + 1) * TILE_SIZE;
-                  p.vy = 0;
-                }
-              }
-            }
-          }
-        }
-      }
-    };
-
     const handlePlayerDeath = () => {
       if (isHost) {
         sendGameEvent({ type: 'level_reset' });
@@ -810,20 +844,7 @@ export const PlatformerGame: React.FC = () => {
           const y = r * TILE_SIZE;
 
           if (tile === TILE_SOLID) {
-            // Neon cyan border glass bricks
-            ctx.fillStyle = 'rgba(17, 24, 39, 0.8)';
-            ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-            ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
-
-            ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + 8, y);
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, y + 8);
-            ctx.stroke();
+            ctx.drawImage(brickImg, x, y, TILE_SIZE, TILE_SIZE);
           }
 
           else if (tile === TILE_SPIKES) {
@@ -881,24 +902,30 @@ export const PlatformerGame: React.FC = () => {
 
           else if (tile === TILE_TERMINAL) {
             // Door Unlock Terminal
-            ctx.fillStyle = doorUnlocked ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 240, 255, 0.15)';
-            ctx.fillRect(x + 6, y + 8, 28, 32);
-            ctx.strokeStyle = doorUnlocked ? '#10b981' : '#00f0ff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x + 6, y + 8, 28, 32);
 
-            // Screen glow
-            ctx.fillStyle = doorUnlocked ? '#10b981' : '#00f0ff';
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = doorUnlocked ? '#10b981' : '#00f0ff';
-            ctx.fillRect(x + 10, y + 12, 20, 14);
+            // ctx.drawImage(gateSwtichONImg, x, y, TILE_SIZE, TILE_SIZE);
+            if (gateSwtichONImg.complete && gateSwtichOFFImg.complete) {
+              ctx.drawImage(doorUnlocked ? gateSwtichONImg : gateSwtichOFFImg, x, y, TILE_SIZE, TILE_SIZE);
+            }
 
-            // Terminal status label
-            ctx.fillStyle = '#0f172a';
-            ctx.font = 'bold 8px Orbitron, monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(doorUnlocked ? 'OPEN' : 'LOCK', x + 20, y + 22);
-            ctx.shadowBlur = 0; // reset
+            // ctx.fillStyle = doorUnlocked ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 240, 255, 0.15)';
+            // ctx.fillRect(x + 6, y + 8, 28, 32);
+            // ctx.strokeStyle = doorUnlocked ? '#10b981' : '#00f0ff';
+            // ctx.lineWidth = 2;
+            // ctx.strokeRect(x + 6, y + 8, 28, 32);
+
+            // // Screen glow
+            // ctx.fillStyle = doorUnlocked ? '#10b981' : '#00f0ff';
+            // ctx.shadowBlur = 8;
+            // ctx.shadowColor = doorUnlocked ? '#10b981' : '#00f0ff';
+            // ctx.fillRect(x + 10, y + 12, 20, 14);
+
+            // // Terminal status label
+            // ctx.fillStyle = '#0f172a';
+            // ctx.font = 'bold 8px Orbitron, monospace';
+            // ctx.textAlign = 'center';
+            // ctx.fillText(doorUnlocked ? 'OPEN' : 'LOCK', x + 20, y + 22);
+            // ctx.shadowBlur = 0; // reset
           }
 
           else if (tile === TILE_DOOR) {

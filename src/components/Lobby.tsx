@@ -287,7 +287,7 @@ export const Lobby: React.FC = () => {
                 <Gamepad2 className="game-card-icon" />
               </div>
               <div className="game-card-content">
-                <h3 className="game-card-title">Gem Hunters</h3>
+                <h3 className="game-card-title">Gate It</h3>
                 <p className="game-card-desc">Jump, dodge traps, and stand on pressure plates in this pixel platformer to open gates for each other and grab the exit key!</p>
                 <span className="game-card-players">Co-op Platformer</span>
               </div>
@@ -346,8 +346,8 @@ export const Lobby: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Selected Game</span>
               <span className="font-display" style={{ fontWeight: 700, color: activeGame ? 'var(--neon-green)' : 'var(--text-muted)' }}>
-                {activeGame === 'platformer' && 'Gem Hunters (Platformer)'}
-                {activeGame === 'shooter' && 'Arena Survival (Top-Down)'}
+                {activeGame === 'platformer' && 'Gate It (Co-op Platformer)'}
+                {activeGame === 'shooter' && 'Arena Survival (Top-Down Survival)'}
                 {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
                 {activeGame === 'farm' && 'Farm Together (Top-Down GBA)'}
                 {!activeGame && 'No Game Selected'}

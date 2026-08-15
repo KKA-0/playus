@@ -105,7 +105,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
               <Gamepad2 className="game-card-icon" />
             </div>
             <div className="game-card-content">
-              <h3 className="game-card-title">Gem Hunters</h3>
+              <h3 className="game-card-title">Gate It</h3>
               <p className="game-card-desc">Navigate pixel platforms, trigger switches, and hold gates open for each other to escape with the golden key.</p>
               <span className="game-card-players">Co-op Platformer</span>
             </div>
