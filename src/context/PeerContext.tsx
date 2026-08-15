@@ -222,8 +222,18 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Create peer object (connects to PeerJS public cloud signaling server)
       const peer = new Peer({
-        debug: 1, // Only print warnings & errors
-      });
+          debug: 3,
+          config: {
+            iceServers: [
+              {
+                urls: 'stun:stun.l.google.com:19302',
+              },
+              {
+                urls: 'stun:stun1.l.google.com:19302',
+              },
+            ],
+          },
+        });
 
       peerRef.current = peer;
 
