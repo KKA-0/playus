@@ -545,7 +545,7 @@ export const PlatformerGame: React.FC = () => {
       }
     };
 
-    const checkTileCollisions = (p: PlayerState, map: number[][], dir: 'x' | 'y') => {
+    const checkTileCollisions = (p: PlayerState, map: (number | undefined)[][], dir: 'x' | 'y') => {
       const EPS = 0.01;
       const left = Math.floor((p.x + EPS) / TILE_SIZE);
       const right = Math.floor((p.x + p.width - EPS) / TILE_SIZE);
