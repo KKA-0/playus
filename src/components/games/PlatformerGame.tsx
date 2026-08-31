@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
-import { Gamepad2, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
+import { Gamepad2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Volume2, VolumeX } from 'lucide-react';
 
 // Game constants
 const CANVAS_WIDTH = 800;
@@ -11,9 +10,9 @@ const TILE_SIZE = 40;
 const ROWS = CANVAS_HEIGHT / TILE_SIZE; // 12
 const COLS = CANVAS_WIDTH / TILE_SIZE; // 20
 
-const GRAVITY = 0.6;
-const WALK_SPEED = 4;
-const JUMP_FORCE = -11.5;
+const GRAVITY = 0.58;
+const WALK_SPEED = 4.2;
+const JUMP_FORCE = -11.6;
 
 // Tile types
 const TILE_SOLID = 1;
@@ -23,17 +22,10 @@ const TILE_DOOR = 4;     // Exit Security Door
 const TILE_GATE = 5;     // Pressure Gate
 const TILE_SWITCH = 6;   // Pressure Switch
 
-const brickImg = new Image();
-brickImg.src = 'gateIt/ch1-brick.png';
-const gateSwtichOFFImg = new Image();
-gateSwtichOFFImg.src = 'gateIt/gateSwitchOFF.png';
-const gateSwtichONImg = new Image();
-gateSwtichONImg.src = 'gateIt/gateSwitchON.png';
-
-// 3 Levels Map Data (12 rows x 20 cols)
+// 4 Levels Map Data (12 rows x 20 cols)
 // 1 = solid block, 2 = spikes, 3 = door terminal, 4 = exit door, 5 = gate, 6 = switch
 const LEVELS = [
-  // LEVEL 1: Introduction to cooperation
+  // LEVEL 1: Introduction to cooperation ("PILOT")
   [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -45,25 +37,25 @@ const LEVELS = [
     [1, 0, 0, 6, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 3, 1], // Switch at col 4 and return switch at col 12
+    [1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 6, 0, 0, 0, 0, 3, 1], // Switch at col 3 (raised), gate at col 11, return switch at col 13, terminal at col 18
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
-  // LEVEL 2: Double split paths
+  // LEVEL 2: Double split paths ("DON'T WORRY!")
   [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 4, 1],
-    [1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+    [1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, , 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 3, 0, 1],
+    [1, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 6, 0, 3, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   ],
-  // LEVEL 3: Precision jumping, spikes, switch coordination
+  // LEVEL 3: Precision jumping, spikes, switch coordination ("DOOMED?")
   [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
@@ -73,7 +65,7 @@ const LEVELS = [
     [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 5, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 3, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 6, 0, 0, 3, 0, 1],
     [1, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -91,25 +83,144 @@ interface PlayerState {
   flipX: boolean;
   animFrame: number;
   animTimer: number;
+  ridingPlayer?: boolean;
 }
 
-/** True when a player is grounded in the tile(s) directly below the exit door. */
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  color: string;
+  alpha: number;
+  life: number;
+  maxLife: number;
+}
+
+/** Check if player is near/inside the exit door zone */
 const isPlayerInExitZone = (p: PlayerState, doorRow: number, doorCol: number) => {
-  const zoneLeft = Math.max(0, (doorCol - 1) * TILE_SIZE);
-  const zoneRight = Math.min(CANVAS_WIDTH, (doorCol + 2) * TILE_SIZE);
-  const zoneTop = doorRow * TILE_SIZE;
+  const zoneLeft = Math.max(0, (doorCol - 0.5) * TILE_SIZE);
+  const zoneRight = Math.min(CANVAS_WIDTH, (doorCol + 1.5) * TILE_SIZE);
+  const zoneTop = doorRow * TILE_SIZE - 10;
   const zoneBottom = (doorRow + 2) * TILE_SIZE;
 
   const playerFeetY = p.y + p.height;
 
   return (
-    !p.isJumping &&
     p.x < zoneRight &&
     p.x + p.width > zoneLeft &&
     playerFeetY >= zoneTop &&
     playerFeetY <= zoneBottom
   );
 };
+
+// Web Audio API Sound Synthesizer (Zero asset loading delay, instant audio)
+class SoundFX {
+  private ctx: AudioContext | null = null;
+
+  private getContext() {
+    if (!this.ctx && typeof window !== 'undefined') {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        this.ctx = new AudioCtx();
+      }
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+    return this.ctx;
+  }
+
+  jump(volume = 0.5) {
+    const ctx = this.getContext();
+    if (!ctx || volume <= 0) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(380, now + 0.12);
+    gain.gain.setValueAtTime(volume * 0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  }
+
+  switch(volume = 0.5) {
+    const ctx = this.getContext();
+    if (!ctx || volume <= 0) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.setValueAtTime(660, now + 0.05);
+    gain.gain.setValueAtTime(volume * 0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  terminalUnlock(volume = 0.5) {
+    const ctx = this.getContext();
+    if (!ctx || volume <= 0) return;
+    const now = ctx.currentTime;
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + i * 0.07);
+      gain.gain.setValueAtTime(volume * 0.25, now + i * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.07);
+      osc.stop(now + i * 0.07 + 0.18);
+    });
+  }
+
+  death(volume = 0.5) {
+    const ctx = this.getContext();
+    if (!ctx || volume <= 0) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(260, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.25);
+    gain.gain.setValueAtTime(volume * 0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
+  levelWin(volume = 0.5) {
+    const ctx = this.getContext();
+    if (!ctx || volume <= 0) return;
+    const now = ctx.currentTime;
+    [440, 554.37, 659.25, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + i * 0.1);
+      gain.gain.setValueAtTime(volume * 0.3, now + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.1);
+      osc.stop(now + i * 0.1 + 0.25);
+    });
+  }
+}
+
+const sfx = new SoundFX();
 
 export const PlatformerGame: React.FC = () => {
   const {
@@ -154,6 +265,7 @@ export const PlatformerGame: React.FC = () => {
   const [score, setScore] = useState<number>(0);
   const [gameCompleted, setGameCompleted] = useState<boolean>(false);
   const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
+  const [doorUnlockedState, setDoorUnlockedState] = useState<boolean>(false);
 
   // Local physical states
   const localPlayerRef = useRef<PlayerState>({
@@ -166,7 +278,8 @@ export const PlatformerGame: React.FC = () => {
     isJumping: false,
     flipX: false,
     animFrame: 0,
-    animTimer: 0
+    animTimer: 0,
+    ridingPlayer: false
   });
 
   const remotePlayerRef = useRef<PlayerState>({
@@ -179,7 +292,19 @@ export const PlatformerGame: React.FC = () => {
     isJumping: false,
     flipX: false,
     animFrame: 0,
-    animTimer: 0
+    animTimer: 0,
+    ridingPlayer: false
+  });
+
+  // Target coordinates for smooth remote player interpolation
+  const remoteTargetRef = useRef<{ x: number; y: number; vx: number; vy: number; isJumping: boolean; flipX: boolean; animFrame: number }>({
+    x: 120,
+    y: 350,
+    vx: 0,
+    vy: 0,
+    isJumping: false,
+    flipX: false,
+    animFrame: 0
   });
 
   // Level states managed by Host
@@ -187,26 +312,43 @@ export const PlatformerGame: React.FC = () => {
     currentLevel: 0,
     doorUnlocked: false,
     gateOpen: false,
-    switchesPressed: [false],
     levelCompleted: false
   });
 
-  // Keyboard controls
+  // Particle System
+  const particlesRef = useRef<Particle[]>([]);
+
+  // Keyboard controls & Timers
   const keysRef = useRef<{ [key: string]: boolean }>({});
   const prevGamepadButtonsRef = useRef<boolean[]>([]);
   const prevGamepadAxisYRef = useRef<number>(0);
   const coyoteTimerRef = useRef<number>(0);
   const jumpBufferTimerRef = useRef<number>(0);
+  const prevGateOpenRef = useRef<boolean>(false);
 
-  // Preloaded GBA character sprites from ChainedGame / FarmGame
+  // Preloaded Game Sprites
+  const brickImgRef = useRef<HTMLImageElement | null>(null);
+  const gateSwitchOffImgRef = useRef<HTMLImageElement | null>(null);
+  const gateSwitchOnImgRef = useRef<HTMLImageElement | null>(null);
   const maleImageRef = useRef<HTMLImageElement | null>(null);
   const femaleImageRef = useRef<HTMLImageElement | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [volume, setVolume] = useState<number>(0.5);
 
-
   useEffect(() => {
+    const brick = new Image();
+    brick.src = '/gateIt/ch1-brick.png';
+    brickImgRef.current = brick;
+
+    const switchOff = new Image();
+    switchOff.src = '/gateIt/gateSwitchOFF.png';
+    gateSwitchOffImgRef.current = switchOff;
+
+    const switchOn = new Image();
+    switchOn.src = '/gateIt/gateSwitchON.png';
+    gateSwitchOnImgRef.current = switchOn;
+
     const maleImg = new Image();
     maleImg.src = '/male.png';
     maleImageRef.current = maleImg;
@@ -216,39 +358,38 @@ export const PlatformerGame: React.FC = () => {
     femaleImageRef.current = femaleImg;
   }, []);
 
-    // Initialize background music
-    useEffect(() => {
-      const audio = new Audio('/music/genHunters.mp3');
-      audio.loop = true;
-      audio.volume = volume;
-  
-      const handleEnded = () => {
-        audio.currentTime = 0;
-        audio.play().catch((err) => {
-          console.warn('Audio loop replay blocked:', err);
-        });
-      };
-  
-      audio.addEventListener('ended', handleEnded);
-      audioRef.current = audio;
-  
-      return () => {
-        if (audioRef.current) {
-          audioRef.current.removeEventListener('ended', handleEnded);
-          audioRef.current.pause();
-          audioRef.current = null;
-        }
-      };
-    }, []);
+  // Initialize background music
+  useEffect(() => {
+    const audio = new Audio('/music/genHunters.mp3');
+    audio.loop = true;
+    audio.volume = volume;
 
-    const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newVol = parseFloat(e.target.value);
-      setVolume(newVol);
+    const handleEnded = () => {
+      audio.currentTime = 0;
+      audio.play().catch((err) => {
+        console.warn('Audio loop replay blocked:', err);
+      });
+    };
+
+    audio.addEventListener('ended', handleEnded);
+    audioRef.current = audio;
+
+    return () => {
       if (audioRef.current) {
-        audioRef.current.volume = newVol;
+        audioRef.current.removeEventListener('ended', handleEnded);
+        audioRef.current.pause();
+        audioRef.current = null;
       }
     };
-  
+  }, []);
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVol = parseFloat(e.target.value);
+    setVolume(newVol);
+    if (audioRef.current) {
+      audioRef.current.volume = newVol;
+    }
+  };
 
   useEffect(() => {
     const handleConnect = () => setGamepadConnected(true);
@@ -272,24 +413,42 @@ export const PlatformerGame: React.FC = () => {
     };
   }, []);
 
-
-    // Play music when connected and active
-    useEffect(() => {
-      if (audioRef.current) {
-        if (isConnected) {
-          if (audioRef.current.paused) {
-            audioRef.current.play().catch((err) => {
-              console.warn('Audio play blocked or failed:', err);
-            });
-          }
-        } else {
-          if (!audioRef.current.paused) {
-            audioRef.current.pause();
-          }
+  // Play music when connected and active
+  useEffect(() => {
+    if (audioRef.current) {
+      if (isConnected && volume > 0) {
+        if (audioRef.current.paused) {
+          audioRef.current.play().catch((err) => {
+            console.warn('Audio play blocked or failed:', err);
+          });
+        }
+      } else {
+        if (!audioRef.current.paused) {
+          audioRef.current.pause();
         }
       }
-    }, [isConnected]);
-  
+    }
+  }, [isConnected, volume]);
+
+  // Particle Spawner Helper
+  const spawnParticles = (x: number, y: number, color: string, count = 12, speed = 2.5) => {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const spd = (Math.random() * 0.7 + 0.3) * speed;
+      particlesRef.current.push({
+        x,
+        y,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd - (Math.random() * 1.5),
+        size: Math.random() * 3.5 + 2,
+        color,
+        alpha: 1,
+        life: 0,
+        maxLife: Math.random() * 20 + 20
+      });
+    }
+  };
+
   // Reset players to level start positions
   const resetPlayerPositions = (levelIdx: number) => {
     if (levelIdx === 0) {
@@ -297,18 +456,24 @@ export const PlatformerGame: React.FC = () => {
       localPlayerRef.current.y = 350;
       remotePlayerRef.current.x = 120;
       remotePlayerRef.current.y = 350;
+      remoteTargetRef.current.x = 120;
+      remoteTargetRef.current.y = 350;
     } else if (levelIdx === 1) {
-      // Level 2 splits: Host spawns bottom-left, Client top-left
+      // Level 2 splits: Host bottom-left, Client top-left
       if (isHost) {
         localPlayerRef.current.x = 80;
-        localPlayerRef.current.y = 320;
+        localPlayerRef.current.y = 350;
         remotePlayerRef.current.x = 80;
         remotePlayerRef.current.y = 80;
+        remoteTargetRef.current.x = 80;
+        remoteTargetRef.current.y = 80;
       } else {
         localPlayerRef.current.x = 80;
         localPlayerRef.current.y = 80;
         remotePlayerRef.current.x = 80;
-        remotePlayerRef.current.y = 320;
+        remotePlayerRef.current.y = 350;
+        remoteTargetRef.current.x = 80;
+        remoteTargetRef.current.y = 350;
       }
     } else {
       // Level 3
@@ -316,15 +481,22 @@ export const PlatformerGame: React.FC = () => {
       localPlayerRef.current.y = 320;
       remotePlayerRef.current.x = 100;
       remotePlayerRef.current.y = 320;
+      remoteTargetRef.current.x = 100;
+      remoteTargetRef.current.y = 320;
     }
 
     localPlayerRef.current.vx = 0;
     localPlayerRef.current.vy = 0;
     localPlayerRef.current.isJumping = false;
+    localPlayerRef.current.ridingPlayer = false;
 
     remotePlayerRef.current.vx = 0;
     remotePlayerRef.current.vy = 0;
     remotePlayerRef.current.isJumping = false;
+
+    // Spawn respawn particle burst
+    spawnParticles(localPlayerRef.current.x + 12, localPlayerRef.current.y + 16, '#00f0ff', 16);
+    spawnParticles(remotePlayerRef.current.x + 12, remotePlayerRef.current.y + 16, '#ff00a0', 16);
   };
 
   const restartCurrentLevel = () => {
@@ -332,6 +504,7 @@ export const PlatformerGame: React.FC = () => {
     levelStateRef.current.doorUnlocked = false;
     levelStateRef.current.gateOpen = false;
     levelStateRef.current.levelCompleted = false;
+    setDoorUnlockedState(false);
     resetPlayerPositions(levelIdx);
     sendGameEvent({ type: 'level_reset' });
     sendGameData({ levelState: levelStateRef.current });
@@ -347,12 +520,11 @@ export const PlatformerGame: React.FC = () => {
     }
   };
 
-  // Sync state initialization
+  // Setup Keyboard inputs
   useEffect(() => {
     resetPlayerPositions(0);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore keypresses if user is typing in a chat input or other text field
       const activeEl = document.activeElement;
       if (
         activeEl &&
@@ -401,68 +573,77 @@ export const PlatformerGame: React.FC = () => {
   useEffect(() => {
     if (!gameData) return;
 
-    // Client receives full authoritative level states + remote player pos from Host
     if (!isHost) {
       if (gameData.player) {
-        remotePlayerRef.current.x = gameData.player.x;
-        remotePlayerRef.current.y = gameData.player.y;
-        remotePlayerRef.current.vx = gameData.player.vx;
-        remotePlayerRef.current.vy = gameData.player.vy;
-        remotePlayerRef.current.isJumping = gameData.player.isJumping;
-        remotePlayerRef.current.flipX = gameData.player.flipX;
-        remotePlayerRef.current.animFrame = gameData.player.animFrame;
+        remoteTargetRef.current = {
+          x: gameData.player.x,
+          y: gameData.player.y,
+          vx: gameData.player.vx,
+          vy: gameData.player.vy,
+          isJumping: gameData.player.isJumping,
+          flipX: gameData.player.flipX,
+          animFrame: gameData.player.animFrame
+        };
       }
 
       if (gameData.levelState) {
         const oldLevel = levelStateRef.current.currentLevel;
+        const oldDoorState = levelStateRef.current.doorUnlocked;
         levelStateRef.current = gameData.levelState;
 
         setCurrentLevel(gameData.levelState.currentLevel);
+        setDoorUnlockedState(gameData.levelState.doorUnlocked);
 
-        // If level changes, reset local position
+        if (!oldDoorState && gameData.levelState.doorUnlocked) {
+          sfx.terminalUnlock(volume);
+        }
+
         if (gameData.levelState.currentLevel !== oldLevel) {
           resetPlayerPositions(gameData.levelState.currentLevel);
         }
       }
-    }
-    // Host receives client position
-    else {
+    } else {
       if (gameData.player) {
-        remotePlayerRef.current.x = gameData.player.x;
-        remotePlayerRef.current.y = gameData.player.y;
-        remotePlayerRef.current.vx = gameData.player.vx;
-        remotePlayerRef.current.vy = gameData.player.vy;
-        remotePlayerRef.current.isJumping = gameData.player.isJumping;
-        remotePlayerRef.current.flipX = gameData.player.flipX;
-        remotePlayerRef.current.animFrame = gameData.player.animFrame;
+        remoteTargetRef.current = {
+          x: gameData.player.x,
+          y: gameData.player.y,
+          vx: gameData.player.vx,
+          vy: gameData.player.vy,
+          isJumping: gameData.player.isJumping,
+          flipX: gameData.player.flipX,
+          animFrame: gameData.player.animFrame
+        };
       }
     }
-  }, [gameData, isHost]);
+  }, [gameData, isHost, volume]);
 
-  // Handle one-off events (like next level load trigger, death effects, or final win)
+  // Handle one-off game events
   useEffect(() => {
     if (!gameEvent) return;
 
     if (gameEvent.type === 'level_reset') {
       resetPlayerPositions(levelStateRef.current.currentLevel);
     } else if (gameEvent.type === 'request_reset' && isHost) {
+      sfx.death(volume);
       sendGameEvent({ type: 'level_reset' });
       resetPlayerPositions(levelStateRef.current.currentLevel);
     } else if (gameEvent.type === 'game_win') {
       setGameCompleted(true);
+      sfx.levelWin(volume);
       confetti({
-        particleCount: 150,
-        spread: 80,
+        particleCount: 160,
+        spread: 90,
         origin: { y: 0.6 }
       });
     }
 
     resetGameEvent();
-  }, [gameEvent, isHost]);
+  }, [gameEvent, isHost, resetGameEvent, volume]);
 
   const advanceToNextLevel = useCallback(() => {
     if (!isHost) return;
 
+    sfx.levelWin(volume);
     const nextIdx = levelStateRef.current.currentLevel + 1;
     if (nextIdx < LEVELS.length) {
       levelStateRef.current.currentLevel = nextIdx;
@@ -471,6 +652,7 @@ export const PlatformerGame: React.FC = () => {
       levelStateRef.current.levelCompleted = false;
 
       setCurrentLevel(nextIdx);
+      setDoorUnlockedState(false);
       resetPlayerPositions(nextIdx);
 
       sendGameData({
@@ -481,12 +663,12 @@ export const PlatformerGame: React.FC = () => {
       setGameCompleted(true);
       sendGameEvent({ type: 'game_win' });
       confetti({
-        particleCount: 150,
-        spread: 80,
+        particleCount: 180,
+        spread: 100,
         origin: { y: 0.6 }
       });
     }
-  }, [isHost, sendGameData, sendGameEvent]);
+  }, [isHost, sendGameData, sendGameEvent, volume]);
 
   // Main game physics and loop
   useEffect(() => {
@@ -521,38 +703,44 @@ export const PlatformerGame: React.FC = () => {
       return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
     };
 
-    // One-way "stand on top" collision so a player can use the other player as a platform.
-    // Only resolves when the moving player is falling (or stationary) onto the other
-    // player's head - it never blocks movement from the side or from below.
+    // One-way player head riding & boost collision
     const checkPlayerOnPlayerCollision = (p: PlayerState, other: PlayerState) => {
-      const LANDING_TOLERANCE = 14; // how many px of overlap still counts as "landing" on the head
-      const HORIZONTAL_MARGIN = 4;  // shrink the landing zone slightly so it feels fair
+      const LANDING_TOLERANCE = 14;
+      const HORIZONTAL_MARGIN = 3;
 
       const overlapsX =
         p.x + p.width > other.x + HORIZONTAL_MARGIN &&
         p.x < other.x + other.width - HORIZONTAL_MARGIN;
 
-      if (!overlapsX) return;
+      if (!overlapsX) {
+        p.ridingPlayer = false;
+        return;
+      }
 
       const feetY = p.y + p.height;
       const otherTopY = other.y;
 
-      // Only "land" when falling/stationary and feet are close to the other player's head
       if (p.vy >= 0 && feetY >= otherTopY && feetY <= otherTopY + LANDING_TOLERANCE) {
         p.y = otherTopY - p.height;
         p.vy = 0;
         p.isJumping = false;
+        p.ridingPlayer = true;
+        // Inherit other player's horizontal movement for smooth tandem riding
+        if (Math.abs(other.vx) > 0.1 && p.vx === 0) {
+          p.x += other.vx * 0.85;
+        }
+      } else {
+        p.ridingPlayer = false;
       }
     };
 
-    const checkTileCollisions = (p: PlayerState, map: (number | undefined)[][], dir: 'x' | 'y') => {
-      const EPS = 0.01;
+    const checkTileCollisions = (p: PlayerState, map: number[][], dir: 'x' | 'y') => {
+      const EPS = 0.05;
       const left = Math.floor((p.x + EPS) / TILE_SIZE);
       const right = Math.floor((p.x + p.width - EPS) / TILE_SIZE);
       const top = Math.floor((p.y + EPS) / TILE_SIZE);
       const bottom = Math.floor((p.y + p.height - EPS) / TILE_SIZE);
 
-      // Check collision in bounding boxes
       for (let r = top; r <= bottom; r++) {
         for (let c = left; c <= right; c++) {
           if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
@@ -585,9 +773,22 @@ export const PlatformerGame: React.FC = () => {
     // Physics Engine
     const updatePhysics = () => {
       const p = localPlayerRef.current;
-      const levelIdx = levelStateRef.current.currentLevel;
-      const map = LEVELS[levelIdx];
+      const rPlayer = remotePlayerRef.current;
+      const target = remoteTargetRef.current;
 
+      // Smooth remote player interpolation (lerp)
+      rPlayer.x += (target.x - rPlayer.x) * 0.45;
+      rPlayer.y += (target.y - rPlayer.y) * 0.45;
+      rPlayer.vx = target.vx;
+      rPlayer.vy = target.vy;
+      rPlayer.isJumping = target.isJumping;
+      rPlayer.flipX = target.flipX;
+      rPlayer.animFrame = target.animFrame;
+
+      const levelIdx = levelStateRef.current.currentLevel;
+      const map = LEVELS[levelIdx] || LEVELS[0];
+
+      // Gamepad handling
       let gpLeft = false;
       let gpRight = false;
       let gpJump = false;
@@ -635,7 +836,7 @@ export const PlatformerGame: React.FC = () => {
         jumpBufferTimerRef.current = 8;
       }
 
-      // Handle horizontal movement
+      // Horizontal movement
       p.vx = 0;
       if (isLeft) {
         p.vx = -WALK_SPEED;
@@ -646,29 +847,33 @@ export const PlatformerGame: React.FC = () => {
         p.flipX = false;
       }
 
-      // Timers for Coyote time and Jump Buffering
+      // Coyote time & Jump Buffering
       if (coyoteTimerRef.current > 0) coyoteTimerRef.current--;
       if (jumpBufferTimerRef.current > 0) jumpBufferTimerRef.current--;
 
       const canJump = !p.isJumping || coyoteTimerRef.current > 0;
 
       if (jumpBufferTimerRef.current > 0 && canJump) {
-        p.vy = JUMP_FORCE;
+        // Extra boost if jumping off teammate's head!
+        p.vy = p.ridingPlayer ? JUMP_FORCE * 1.08 : JUMP_FORCE;
         p.isJumping = true;
+        p.ridingPlayer = false;
         coyoteTimerRef.current = 0;
         jumpBufferTimerRef.current = 0;
+        sfx.jump(volume);
+        spawnParticles(p.x + p.width / 2, p.y + p.height, '#00f0ff', 6, 1.5);
       }
 
-      // Variable jump height: cut jump velocity if player releases jump key early
+      // Variable jump height
       if (!isJump && p.vy < -3) {
         p.vy = -3;
       }
 
-      // Apply Gravity
+      // Gravity
       p.vy += GRAVITY;
-      if (p.vy > 12) p.vy = 12; // Terminal velocity
+      if (p.vy > 12) p.vy = 12;
 
-      // Update Walking Animation Frame
+      // Walking animation
       if (p.vx !== 0) {
         p.animTimer += 1;
         if (p.animTimer >= 6) {
@@ -679,32 +884,30 @@ export const PlatformerGame: React.FC = () => {
         p.animFrame = 0;
       }
 
-      // Collision Detection - Move X
+      // Move X
       p.x += p.vx;
       checkTileCollisions(p, map, 'x');
 
-      // Collision Detection - Move Y
+      // Move Y
       p.y += p.vy;
-      p.isJumping = true; // Assume jumping/falling unless Y collision sets grounded
+      p.isJumping = true;
       checkTileCollisions(p, map, 'y');
 
-      // Let this player stand on top of the other player, like a platform
-      checkPlayerOnPlayerCollision(p, remotePlayerRef.current);
+      // Player on player platforming
+      checkPlayerOnPlayerCollision(p, rPlayer);
 
-      // Update coyote time if grounded
       if (!p.isJumping) {
-        coyoteTimerRef.current = 6; // 6 frames coyote time window
+        coyoteTimerRef.current = 6;
       }
 
       // Screen boundaries
       if (p.x < 0) p.x = 0;
       if (p.x > CANVAS_WIDTH - p.width) p.x = CANVAS_WIDTH - p.width;
-      if (p.y > CANVAS_HEIGHT) {
-        // Fell out of screen -> Die
+      if (p.y > CANVAS_HEIGHT + 40) {
         handlePlayerDeath();
       }
 
-      // --- Host Authoritative Checks (Switches, Gates, Gem Collections, Exit Portal) ---
+      // Host Authoritative Logic
       if (isHost) {
         const p1 = localPlayerRef.current;
         const p2 = remotePlayerRef.current;
@@ -712,16 +915,15 @@ export const PlatformerGame: React.FC = () => {
 
         let switchPressedThisFrame = false;
 
-        // Scan the map for any active switch positions
+        // Check switches
         for (let r = 0; r < ROWS; r++) {
           for (let c = 0; c < COLS; c++) {
             if (map[r][c] === TILE_SWITCH) {
               const switchX = c * TILE_SIZE + 2;
-              const switchY = r * TILE_SIZE + 16; // Start detection 16px from top of tile
+              const switchY = r * TILE_SIZE + 14;
               const switchW = TILE_SIZE - 4;
-              const switchH = 24;
+              const switchH = 26;
 
-              // Check if either Player 1 OR Player 2 is on this switch
               const p1On = checkRectOverlap(p1.x, p1.y, p1.width, p1.height, switchX, switchY, switchW, switchH);
               const p2On = checkRectOverlap(p2.x, p2.y, p2.width, p2.height, switchX, switchY, switchW, switchH);
 
@@ -732,31 +934,40 @@ export const PlatformerGame: React.FC = () => {
           }
         }
 
-        // Open the pressure gate if ANY switch is occupied
+        if (switchPressedThisFrame !== prevGateOpenRef.current) {
+          prevGateOpenRef.current = switchPressedThisFrame;
+          if (switchPressedThisFrame) {
+            sfx.switch(volume);
+          }
+        }
+
         state.gateOpen = switchPressedThisFrame;
 
-        // Check if either player activates Door Unlock Terminal (TILE_TERMINAL / tile 3)
+        // Check door terminal
         if (!state.doorUnlocked) {
           for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
               if (map[r][c] === TILE_TERMINAL) {
-                const termX = c * TILE_SIZE + 6;
-                const termY = r * TILE_SIZE + 6;
-                const termSize = TILE_SIZE - 12;
+                const termX = c * TILE_SIZE + 4;
+                const termY = r * TILE_SIZE + 4;
+                const termSize = TILE_SIZE - 8;
 
                 const p1Hits = checkRectOverlap(p1.x, p1.y, p1.width, p1.height, termX, termY, termSize, termSize);
                 const p2Hits = checkRectOverlap(p2.x, p2.y, p2.width, p2.height, termX, termY, termSize, termSize);
 
                 if (p1Hits || p2Hits) {
                   state.doorUnlocked = true;
+                  setDoorUnlockedState(true);
                   setScore((s) => s + 100);
+                  sfx.terminalUnlock(volume);
+                  spawnParticles(c * TILE_SIZE + 20, r * TILE_SIZE + 20, '#10b981', 25, 4);
                 }
               }
             }
           }
         }
 
-        // Check if players touch hazards (Spikes)
+        // Check spikes
         for (let r = 0; r < ROWS; r++) {
           for (let c = 0; c < COLS; c++) {
             if (map[r][c] === TILE_SPIKES) {
@@ -775,7 +986,7 @@ export const PlatformerGame: React.FC = () => {
           }
         }
 
-        // Both players must be standing below the unlocked exit door to advance
+        // Exit door check (both players at door)
         if (state.doorUnlocked && !state.levelCompleted) {
           for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
@@ -792,14 +1003,26 @@ export const PlatformerGame: React.FC = () => {
           }
         }
       }
+
+      // Update active particles
+      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
+        const pt = particlesRef.current[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life++;
+        pt.alpha = 1 - pt.life / pt.maxLife;
+        if (pt.life >= pt.maxLife) {
+          particlesRef.current.splice(i, 1);
+        }
+      }
     };
 
     const handlePlayerDeath = () => {
+      sfx.death(volume);
       if (isHost) {
         sendGameEvent({ type: 'level_reset' });
         resetPlayerPositions(levelStateRef.current.currentLevel);
       } else {
-        // Request reset from host
         sendGameEvent({ type: 'request_reset' });
       }
     };
@@ -811,17 +1034,20 @@ export const PlatformerGame: React.FC = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
+      // Crisp pixel rendering
+      ctx.imageSmoothingEnabled = false;
+
       const levelIdx = levelStateRef.current.currentLevel;
-      const map = LEVELS[levelIdx];
+      const map = LEVELS[levelIdx] || LEVELS[0];
       const gateOpen = levelStateRef.current.gateOpen;
       const doorUnlocked = levelStateRef.current.doorUnlocked;
 
       // 1. Draw Space Background
-      ctx.fillStyle = '#05060b';
+      ctx.fillStyle = '#060814';
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Grid helper lines (subtle)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.015)';
+      // Subtle Cyber Grid Lines
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.035)';
       ctx.lineWidth = 1;
       for (let x = 0; x < CANVAS_WIDTH; x += TILE_SIZE) {
         ctx.beginPath();
@@ -844,17 +1070,28 @@ export const PlatformerGame: React.FC = () => {
           const y = r * TILE_SIZE;
 
           if (tile === TILE_SOLID) {
-            ctx.drawImage(brickImg, x, y, TILE_SIZE, TILE_SIZE);
-          }
-
-          else if (tile === TILE_SPIKES) {
-            // Drawing red warning spikes
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
-            ctx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
+            const brick = brickImgRef.current;
+            if (brick && brick.complete && brick.naturalWidth > 0) {
+              ctx.drawImage(brick, x, y, TILE_SIZE, TILE_SIZE);
+            } else {
+              // High-tech solid block fallback
+              ctx.fillStyle = '#1e293b';
+              ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+              ctx.strokeStyle = '#334155';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(x + 0.5, y + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+            }
+          } else if (tile === TILE_SPIKES) {
+            // Animated Neon Hazard Spikes
+            const glow = Math.sin(Date.now() / 200) * 0.2 + 0.8;
+            ctx.save();
+            ctx.fillStyle = `rgba(239, 68, 68, ${0.25 * glow})`;
+            ctx.strokeStyle = `rgba(239, 68, 68, ${glow})`;
             ctx.lineWidth = 2;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#ef4444';
 
             ctx.beginPath();
-            // Draw 4 little triangles per tile
             for (let i = 0; i < 4; i++) {
               const sx = x + (i * 10);
               ctx.moveTo(sx, y + TILE_SIZE);
@@ -864,119 +1101,128 @@ export const PlatformerGame: React.FC = () => {
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
-          }
-
-          else if (tile === TILE_SWITCH) {
+            ctx.restore();
+          } else if (tile === TILE_SWITCH) {
             // Pressure Plate
-            ctx.fillStyle = gateOpen ? '#10b981' : '#eab308';
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = gateOpen ? '#10b981' : '#eab308';
-
-            if (gateOpen) {
-              ctx.fillRect(x + 4, y + 32, TILE_SIZE - 8, 8);
+            ctx.save();
+            const switchImg = gateOpen ? gateSwitchOnImgRef.current : gateSwitchOffImgRef.current;
+            if (switchImg && switchImg.complete && switchImg.naturalWidth > 0) {
+              ctx.drawImage(switchImg, x, y, TILE_SIZE, TILE_SIZE);
             } else {
-              ctx.fillRect(x + 4, y + 24, TILE_SIZE - 8, 16);
+              ctx.fillStyle = gateOpen ? '#10b981' : '#eab308';
+              ctx.shadowBlur = 10;
+              ctx.shadowColor = gateOpen ? '#10b981' : '#eab308';
+              if (gateOpen) {
+                ctx.fillRect(x + 4, y + 32, TILE_SIZE - 8, 8);
+              } else {
+                ctx.fillRect(x + 4, y + 24, TILE_SIZE - 8, 16);
+              }
             }
-            ctx.shadowBlur = 0; // reset
-          }
-
-          else if (tile === TILE_GATE) {
+            ctx.restore();
+          } else if (tile === TILE_GATE) {
+            ctx.save();
             if (!gateOpen) {
-              // Glowing yellow gate blocks
-              ctx.fillStyle = 'rgba(234, 179, 8, 0.15)';
-              ctx.fillRect(x + 8, y, TILE_SIZE - 16, TILE_SIZE);
+              // Glowing Laser Energy Barrier
+              const pulse = Math.sin(Date.now() / 120) * 0.3 + 0.7;
+              ctx.fillStyle = `rgba(234, 179, 8, ${0.2 * pulse})`;
+              ctx.fillRect(x + 6, y, TILE_SIZE - 12, TILE_SIZE);
 
               ctx.strokeStyle = '#eab308';
               ctx.lineWidth = 3;
-              ctx.shadowBlur = 8;
+              ctx.shadowBlur = 12 * pulse;
               ctx.shadowColor = '#eab308';
+
+              // Laser vertical bars
               ctx.beginPath();
               ctx.moveTo(x + 8, y);
               ctx.lineTo(x + 8, y + TILE_SIZE);
+              ctx.moveTo(x + TILE_SIZE / 2, y);
+              ctx.lineTo(x + TILE_SIZE / 2, y + TILE_SIZE);
               ctx.moveTo(x + TILE_SIZE - 8, y);
               ctx.lineTo(x + TILE_SIZE - 8, y + TILE_SIZE);
               ctx.stroke();
-              ctx.shadowBlur = 0; // reset
+
+              // Top/Bottom Gate Emitter Mounts
+              ctx.fillStyle = '#475569';
+              ctx.fillRect(x + 4, y, TILE_SIZE - 8, 6);
+              ctx.fillRect(x + 4, y + TILE_SIZE - 6, TILE_SIZE - 8, 6);
+            } else {
+              // Open Gate Retracted State
+              ctx.fillStyle = '#10b981';
+              ctx.fillRect(x + 4, y, TILE_SIZE - 8, 4);
+              ctx.fillRect(x + 4, y + TILE_SIZE - 4, TILE_SIZE - 8, 4);
+              ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+              ctx.lineWidth = 1;
+              ctx.setLineDash([4, 4]);
+              ctx.strokeRect(x + 6, y + 4, TILE_SIZE - 12, TILE_SIZE - 8);
+              ctx.setLineDash([]);
             }
-          }
-
-          else if (tile === TILE_TERMINAL) {
-            // Door Unlock Terminal
-
-            // ctx.drawImage(gateSwtichONImg, x, y, TILE_SIZE, TILE_SIZE);
-            if (gateSwtichONImg.complete && gateSwtichOFFImg.complete) {
-              ctx.drawImage(doorUnlocked ? gateSwtichONImg : gateSwtichOFFImg, x, y, TILE_SIZE, TILE_SIZE);
+            ctx.restore();
+          } else if (tile === TILE_TERMINAL) {
+            // Key / Door Unlock Terminal
+            ctx.save();
+            const termSwitchImg = doorUnlocked ? gateSwitchOnImgRef.current : gateSwitchOffImgRef.current;
+            if (termSwitchImg && termSwitchImg.complete && termSwitchImg.naturalWidth > 0) {
+              ctx.drawImage(termSwitchImg, x, y, TILE_SIZE, TILE_SIZE);
+            } else {
+              ctx.fillStyle = doorUnlocked ? 'rgba(16, 185, 129, 0.25)' : 'rgba(0, 240, 255, 0.2)';
+              ctx.fillRect(x + 6, y + 8, 28, 30);
+              ctx.strokeStyle = doorUnlocked ? '#10b981' : '#00f0ff';
+              ctx.lineWidth = 2;
+              ctx.shadowBlur = 10;
+              ctx.shadowColor = doorUnlocked ? '#10b981' : '#00f0ff';
+              ctx.strokeRect(x + 6, y + 8, 28, 30);
             }
 
-            // ctx.fillStyle = doorUnlocked ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 240, 255, 0.15)';
-            // ctx.fillRect(x + 6, y + 8, 28, 32);
-            // ctx.strokeStyle = doorUnlocked ? '#10b981' : '#00f0ff';
-            // ctx.lineWidth = 2;
-            // ctx.strokeRect(x + 6, y + 8, 28, 32);
-
-            // // Screen glow
-            // ctx.fillStyle = doorUnlocked ? '#10b981' : '#00f0ff';
-            // ctx.shadowBlur = 8;
-            // ctx.shadowColor = doorUnlocked ? '#10b981' : '#00f0ff';
-            // ctx.fillRect(x + 10, y + 12, 20, 14);
-
-            // // Terminal status label
-            // ctx.fillStyle = '#0f172a';
-            // ctx.font = 'bold 8px Orbitron, monospace';
-            // ctx.textAlign = 'center';
-            // ctx.fillText(doorUnlocked ? 'OPEN' : 'LOCK', x + 20, y + 22);
-            // ctx.shadowBlur = 0; // reset
-          }
-
-          else if (tile === TILE_DOOR) {
-            // Futuristic Security Exit Door
-            const pulse = Math.sin(Date.now() / 150) * 3;
-
+            // Key Floating Icon
+            const floatOffset = Math.sin(Date.now() / 220) * 3;
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = doorUnlocked ? '#10b981' : '#ffd700';
+            ctx.fillText(doorUnlocked ? '✅' : '🔑', x + 20, y + 24 + floatOffset);
+            ctx.restore();
+          } else if (tile === TILE_DOOR) {
+            // Futuristic Exit Portal Door
+            const pulse = Math.sin(Date.now() / 160) * 3;
             ctx.save();
             if (doorUnlocked) {
-              // UNLOCKED OPEN DOOR
-              ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
-              ctx.fillRect(x + 2, y, TILE_SIZE - 4, TILE_SIZE);
+              // Open Portal
+              ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+              ctx.fillRect(x + 2, y - 6, TILE_SIZE - 4, TILE_SIZE + 6);
 
               ctx.strokeStyle = '#10b981';
               ctx.lineWidth = 3;
-              ctx.shadowBlur = 12;
+              ctx.shadowBlur = 15;
               ctx.shadowColor = '#10b981';
-              ctx.strokeRect(x + 2, y, TILE_SIZE - 4, TILE_SIZE);
+              ctx.strokeRect(x + 2, y - 6, TILE_SIZE - 4, TILE_SIZE + 6);
 
-              // Open Portal Interior Core
-              ctx.fillStyle = 'rgba(16, 185, 129, 0.6)';
+              // Swirling Portal Core
+              ctx.fillStyle = 'rgba(16, 185, 129, 0.75)';
               ctx.beginPath();
-              ctx.arc(x + 20, y + 20, 10 + pulse, 0, Math.PI * 2);
+              ctx.arc(x + 20, y + 18, 12 + pulse, 0, Math.PI * 2);
               ctx.fill();
 
               // Top Indicator Lamp (Green)
               ctx.fillStyle = '#10b981';
               ctx.beginPath();
-              ctx.arc(x + 20, y + 6, 3, 0, Math.PI * 2);
+              ctx.arc(x + 20, y, 4, 0, Math.PI * 2);
               ctx.fill();
             } else {
-              // LOCKED SECURITY DOOR
-              ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
-              ctx.fillRect(x + 2, y, TILE_SIZE - 4, TILE_SIZE);
+              // Locked Security Door
+              ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
+              ctx.fillRect(x + 2, y - 6, TILE_SIZE - 4, TILE_SIZE + 6);
 
               ctx.strokeStyle = '#475569';
               ctx.lineWidth = 2;
-              ctx.strokeRect(x + 2, y, TILE_SIZE - 4, TILE_SIZE);
-
-              // Steel door slats
-              ctx.beginPath();
-              ctx.moveTo(x + 6, y + 10); ctx.lineTo(x + TILE_SIZE - 6, y + 10);
-              ctx.moveTo(x + 6, y + 20); ctx.lineTo(x + TILE_SIZE - 6, y + 20);
-              ctx.moveTo(x + 6, y + 30); ctx.lineTo(x + TILE_SIZE - 6, y + 30);
-              ctx.stroke();
+              ctx.strokeRect(x + 2, y - 6, TILE_SIZE - 4, TILE_SIZE + 6);
 
               // Lock Light (Red)
               ctx.fillStyle = '#ef4444';
               ctx.shadowBlur = 8;
               ctx.shadowColor = '#ef4444';
               ctx.beginPath();
-              ctx.arc(x + 20, y + 20, 5, 0, Math.PI * 2);
+              ctx.arc(x + 20, y + 16, 5, 0, Math.PI * 2);
               ctx.fill();
             }
             ctx.restore();
@@ -984,7 +1230,20 @@ export const PlatformerGame: React.FC = () => {
         }
       }
 
-      // 3. Draw Players (Using Chained Game Characters)
+      // 3. Draw Particles
+      for (const pt of particlesRef.current) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, pt.alpha);
+        ctx.fillStyle = pt.color;
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = pt.color;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 4. Draw Characters (Male for P1, Female for P2)
       const drawCharacterPlayer = (
         p: PlayerState,
         baseColor: string,
@@ -997,28 +1256,25 @@ export const PlatformerGame: React.FC = () => {
 
         if (imgLoaded) {
           ctx.save();
-          // Translate to center-bottom of the player box
           ctx.translate(p.x + p.width / 2, p.y + p.height);
 
           if (p.flipX) {
             ctx.scale(-1, 1);
           }
 
-          // Subtle glow under sprite
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 10;
           ctx.shadowColor = glowColor;
 
-          // Draw character sprite centered horizontally and aligned to feet at the bottom
           ctx.drawImage(
             img,
-            -24,      // half of 48 width
-            -48 + 4,  // align feet pivot (48 height)
+            -24,
+            -48 + 4,
             48,
             48
           );
           ctx.restore();
         } else {
-          // Fallback to space suit player
+          // Space suit fallback
           ctx.save();
           ctx.translate(p.x + p.width / 2, p.y + p.height / 2);
 
@@ -1026,15 +1282,12 @@ export const PlatformerGame: React.FC = () => {
             ctx.scale(-1, 1);
           }
 
-          // Glow helmet
           ctx.shadowBlur = 10;
           ctx.shadowColor = glowColor;
 
-          // Draw body/space suit
           ctx.fillStyle = baseColor;
           ctx.fillRect(-p.width / 2, -p.height / 2 + 10, p.width, p.height - 18);
 
-          // Helmet/Dome
           ctx.fillStyle = '#1e293b';
           ctx.beginPath();
           ctx.arc(0, -p.height / 2 + 10, 12, Math.PI, 0);
@@ -1043,12 +1296,10 @@ export const PlatformerGame: React.FC = () => {
           ctx.lineWidth = 2;
           ctx.stroke();
 
-          // Visor
           ctx.fillStyle = glowColor;
           ctx.fillRect(2, -p.height / 2 + 4, 8, 6);
 
-          // Draw moving legs
-          ctx.shadowBlur = 0; // reset
+          ctx.shadowBlur = 0;
           ctx.fillStyle = '#0f172a';
 
           const walkCycle = p.animFrame;
@@ -1058,28 +1309,19 @@ export const PlatformerGame: React.FC = () => {
           ctx.fillRect(-8, p.height / 2 - 8, 4, 8 + leftOffset);
           ctx.fillRect(4, p.height / 2 - 8, 4, 8 + rightOffset);
 
-          // Jetpack trail if jumping/flying
-          if (p.isJumping && Math.random() > 0.3) {
-            ctx.fillStyle = '#ef4444';
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = '#f97316';
-            ctx.fillRect(-12, 0, 4, 10);
-          }
-
           ctx.restore();
         }
 
-        // Label tag above character
+        // Floating name badge
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 9px Orbitron, sans-serif';
         ctx.textAlign = 'center';
-        ctx.shadowBlur = 4;
+        ctx.shadowBlur = 6;
         ctx.shadowColor = glowColor;
         ctx.fillText(label, p.x + p.width / 2, p.y - 8);
-        ctx.shadowBlur = 0; // reset
+        ctx.shadowBlur = 0;
       };
 
-      // Draw Host (Male character / Cyan) and Client (Female character / Magenta)
       const p1 = isHost ? localPlayerRef.current : remotePlayerRef.current;
       const p2 = isHost ? remotePlayerRef.current : localPlayerRef.current;
 
@@ -1090,9 +1332,8 @@ export const PlatformerGame: React.FC = () => {
       drawCharacterPlayer(p2, '#ff00a0', 'rgba(255, 0, 127, 0.85)', p2Label, false);
     };
 
-    // Network Sync Loops
+    // Network Sync
     const syncNetwork = () => {
-      // Send current local coordinates
       const myState = localPlayerRef.current;
 
       const payload: any = {
@@ -1107,7 +1348,6 @@ export const PlatformerGame: React.FC = () => {
         }
       };
 
-      // If we are Host, we also append authoritative level metrics
       if (isHost) {
         payload.levelState = levelStateRef.current;
       }
@@ -1115,7 +1355,6 @@ export const PlatformerGame: React.FC = () => {
       sendGameData(payload);
     };
 
-    // Start running loop
     if (isConnected && !gameCompleted) {
       animationId = requestAnimationFrame(gameLoop);
     }
@@ -1123,7 +1362,7 @@ export const PlatformerGame: React.FC = () => {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [isConnected, isHost, gameCompleted, advanceToNextLevel]);
+  }, [isConnected, isHost, gameCompleted, advanceToNextLevel, volume]);
 
   // Host listener for client restart requests
   useEffect(() => {
@@ -1143,6 +1382,7 @@ export const PlatformerGame: React.FC = () => {
       levelStateRef.current.levelCompleted = false;
 
       setCurrentLevel(0);
+      setDoorUnlockedState(false);
       resetPlayerPositions(0);
 
       sendGameEvent({ type: 'level_reset' });
@@ -1163,14 +1403,11 @@ export const PlatformerGame: React.FC = () => {
           </span>
         </h2>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {/* <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)' }}>
-            Score: {score}
-          </div> */}
-          {/* <div className="peer-badge" style={{ borderColor: levelStateRef.current.doorUnlocked ? 'var(--neon-green)' : 'var(--neon-yellow)', color: levelStateRef.current.doorUnlocked ? 'var(--neon-green)' : 'var(--neon-yellow)' }}>
-            {levelStateRef.current.doorUnlocked ? '🚪 Door Unlocked!' : '🔒 Door Locked'}
-          </div> */}
+          <div className="peer-badge" style={{ borderColor: doorUnlockedState ? 'var(--neon-green)' : 'var(--neon-yellow)', color: doorUnlockedState ? 'var(--neon-green)' : 'var(--neon-yellow)' }}>
+            {doorUnlockedState ? '🚪 Portal Active!' : '🔒 Portal Locked (Find Key)'}
+          </div>
 
-          {/* Volume Control Widget */}
+          {/* Volume Control */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '6px', padding: '0.3rem 0.6rem' }}>
             {volume === 0 ? <VolumeX size={14} className="text-muted" /> : <Volume2 size={14} style={{ color: 'var(--neon-purple)' }} />}
             <input
@@ -1192,17 +1429,19 @@ export const PlatformerGame: React.FC = () => {
               {Math.round(volume * 100)}%
             </span>
           </div>
+
           {gamepadConnected && (
             <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)', gap: '0.4rem' }}>
               <Gamepad2 size={14} />
               <span>Controller</span>
             </div>
           )}
+
           <button
             className="glow-btn-cyan font-display"
             onClick={handleRestartLevel}
             style={{ padding: '0.4rem 0.9rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-            // title={'Restart this level'
+            title="Restart current level"
           >
             <RotateCcw size={14} />
           </button>
@@ -1262,7 +1501,7 @@ export const PlatformerGame: React.FC = () => {
           </div>
           <div>
             <span>Controls: </span>
-            <span className="control-key">A</span> / <span className="control-key">D</span> or <span className="control-key">←</span> / <span className="control-key">→</span> to Move | <span className="control-key">W</span> / <span className="control-key">Space</span> to Jump
+            <span className="control-key">A</span> / <span className="control-key">D</span> or <span className="control-key">←</span> / <span className="control-key">→</span> Move | <span className="control-key">W</span> / <span className="control-key">Space</span> Jump
             {gamepadConnected && (
               <span> | <span className="control-key">Stick</span> / <span className="control-key">D-Pad</span> Move | <span className="control-key">A</span> / <span className="control-key">↑</span> Jump</span>
             )}
