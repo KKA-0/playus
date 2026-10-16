@@ -15,9 +15,10 @@ export interface PlayerState {
 }
 
 export interface Crop {
+  id: string;
   x: number;
   y: number;
-  type: 'carrot' | 'pumpkin';
+  type: 'carrot' | 'pumpkin' | 'tomato' | 'corn';
   stage: number; // 0, 1, 2
   watered: boolean;
   growthTimer: number;

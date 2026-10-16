@@ -1,8 +1,8 @@
 export const getGameClock = (elapsedSeconds: number) => {
   const cycleSeconds = elapsedSeconds % 2100;
   let isNight = false;
-  let virtualHour = 6;
-  let virtualMinute = 0;
+  let virtualHour: number;
+  let virtualMinute: number;
 
   if (cycleSeconds < 1500) {
     // Day: 06:00 AM to 08:00 PM (14 hours = 840 mins)
@@ -58,9 +58,15 @@ export const getItemEmoji = (item: string | null) => {
   if (!item) return '';
   switch (item) {
     case 'seeds': return '🌱';
+    case 'pumpkin_seeds': return '🎃';
+    case 'tomato_seeds': return '🍅';
+    case 'corn_seeds': return '🌽';
     case 'watering_can': return '🪣';
     case 'carrot': return '🥕';
     case 'pumpkin': return '🎃';
+    case 'tomato': return '🍅';
+    case 'corn': return '🌽';
+    case 'egg': return '🥚';
     case 'berry': return '🍓';
     case 'wood': return '🪵';
     case 'stone': return '🪨';
@@ -71,10 +77,16 @@ export const getItemEmoji = (item: string | null) => {
 export const getItemName = (item: string | null) => {
   if (!item) return '';
   switch (item) {
-    case 'seeds': return 'Seeds';
+    case 'seeds': return 'Carrot seeds';
+    case 'pumpkin_seeds': return 'Pumpkin seeds';
+    case 'tomato_seeds': return 'Tomato seeds';
+    case 'corn_seeds': return 'Corn seeds';
     case 'watering_can': return 'Can';
     case 'carrot': return 'Carrot';
     case 'pumpkin': return 'Pumpkin';
+    case 'tomato': return 'Tomato';
+    case 'corn': return 'Corn';
+    case 'egg': return 'Egg';
     case 'berry': return 'Berry';
     case 'wood': return 'Wood';
     case 'stone': return 'Stone';

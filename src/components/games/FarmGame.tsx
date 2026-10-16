@@ -1,11 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
 import type { PlayerState, Crop, WildItem, SmokeParticle, InventoryItem, Weed, ChickenState } from './farm/types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, MAP_WIDTH, MAP_HEIGHT, PLAYER_SPEED, SPRITE_SIZE } from './farm/constants';
-import { getGameClock, getAmbientColor, getItemEmoji } from './farm/utils';
+import { getGameClock, getAmbientColor, getItemEmoji, getItemName } from './farm/utils';
 import { ChestOverlay } from './farm/ChestOverlay';
 import { CharacterSelection } from './farm/CharacterSelection';
 import { GameHeader } from './farm/GameHeader';
+import { FarmBoard } from './farm/FarmBoard';
+import { COOP, MARKET, applyFarmAction, createFarmProgress, createStarterInventory, getFarmLevel, getOrder, getWeather, isSeed, near, processFarmRequests, tickFarm } from './farm/gameplay';
+import type { FarmAction, FarmRequest, FarmWorld } from './farm/gameplay';
+import { drawFarmStations } from './farm/drawStations';
 
 export const FarmGame: React.FC = () => {
   const {
@@ -27,10 +31,21 @@ export const FarmGame: React.FC = () => {
   // Character selection states
   const [localGender, setLocalGender] = useState<'male' | 'female' | null>(null);
   const [remoteGender, setRemoteGender] = useState<'male' | 'female' | null>(null);
-  const [selectionComplete, setSelectionComplete] = useState<boolean>(false);
+  const selectionComplete = !!localGender && (!isConnected || !!remoteGender);
 
   // Game clock states
   const elapsedTimeRef = useRef<number>(0);
+  const [initialProgress] = useState(() => createFarmProgress(crypto.randomUUID()));
+  const farmRef = useRef(structuredClone(initialProgress));
+  const hasHostStateRef = useRef(false);
+  const pendingActionsRef = useRef<FarmRequest[]>([]);
+  const nextActionIdRef = useRef(0);
+  const guestAckRef = useRef(0);
+  const guestNoticeRef = useRef('');
+  const noticeRef = useRef({ message: '', until: 0 });
+  const [isBoardOpen, setIsBoardOpen] = useState(false);
+  const isBoardOpenRef = useRef(false);
+  useEffect(() => { isBoardOpenRef.current = isBoardOpen; }, [isBoardOpen]);
 
   // Inventory selection state
   const [selectedSlot, setSelectedSlot] = useState<number>(0);
@@ -39,7 +54,7 @@ export const FarmGame: React.FC = () => {
     selectedSlotRef.current = selectedSlot;
   }, [selectedSlot]);
 
-  const [gamepadConnected, setGamepadConnected] = useState<boolean>(false);
+  const [gamepadConnected, setGamepadConnected] = useState(() => Array.from(navigator.getGamepads?.() ?? []).some(g => g !== null));
   const prevGamepadButtonsRef = useRef<boolean[]>([]);
 
   useEffect(() => {
@@ -52,12 +67,6 @@ export const FarmGame: React.FC = () => {
 
     window.addEventListener('gamepadconnected', handleConnect);
     window.addEventListener('gamepaddisconnected', handleDisconnect);
-
-    // Initial check
-    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    if (Array.from(gamepads).some(g => g !== null)) {
-      setGamepadConnected(true);
-    }
 
     return () => {
       window.removeEventListener('gamepadconnected', handleConnect);
@@ -74,7 +83,7 @@ export const FarmGame: React.FC = () => {
   useEffect(() => {
     const audio = new Audio('/music/farm.mp3');
     audio.loop = true;
-    audio.volume = volume;
+    audio.volume = 0.5;
 
     const handleEnded = () => {
       audio.currentTime = 0;
@@ -88,7 +97,7 @@ export const FarmGame: React.FC = () => {
 
     const homeAudio = new Audio('/music/home.mp3');
     homeAudio.loop = true;
-    homeAudio.volume = volume;
+    homeAudio.volume = 0.5;
 
     const handleHomeEnded = () => {
       homeAudio.currentTime = 0;
@@ -175,6 +184,11 @@ export const FarmGame: React.FC = () => {
 
   // Keyboard controls
   const keysRef = useRef<{ [key: string]: boolean }>({});
+  const closeFarmBoard = () => {
+    setIsBoardOpen(false);
+    keysRef.current = {};
+    canvasRef.current?.focus({ preventScroll: true });
+  };
 
   // Entity states
   const localPlayerRef = useRef<PlayerState>({
@@ -185,11 +199,7 @@ export const FarmGame: React.FC = () => {
     isMoving: false,
     inHouse: false,
     facingUp: false,
-    inventory: [
-      { type: 'seeds', count: 1 },
-      { type: 'watering_can', count: 1 },
-      null
-    ]
+    inventory: createStarterInventory()
   });
 
   const remotePlayerRef = useRef<PlayerState>({
@@ -200,11 +210,7 @@ export const FarmGame: React.FC = () => {
     isMoving: false,
     inHouse: false,
     facingUp: false,
-    inventory: [
-      { type: 'seeds', count: 1 },
-      { type: 'watering_can', count: 1 },
-      null
-    ]
+    inventory: createStarterInventory()
   });
 
   // Chest items ref (10 slots)
@@ -221,6 +227,8 @@ export const FarmGame: React.FC = () => {
     { id: 'berry_2', x: 820, y: 365, type: 'berry', active: true, respawnTimer: 0 },
     { id: 'wood_1', x: 150, y: 600, type: 'wood', active: true, respawnTimer: 0 },
     { id: 'stone_1', x: 900, y: 200, type: 'stone', active: true, respawnTimer: 0 },
+    { id: 'wood_2', x: 260, y: 480, type: 'wood', active: true, respawnTimer: 0 },
+    { id: 'stone_2', x: 760, y: 470, type: 'stone', active: true, respawnTimer: 0 },
   ]);
 
   const generateInitialWeeds = (): Weed[] => {
@@ -234,6 +242,7 @@ export const FarmGame: React.FC = () => {
 
       if (wx >= 395 && wx <= 605 && wy >= 55 && wy <= 215) continue;
       if (wx >= 330 && wx <= 670 && wy >= 230 && wy <= 470) continue;
+      if (Math.hypot(wx - MARKET.x, wy - MARKET.y) < 75 || Math.hypot(wx - COOP.x, wy - COOP.y) < 75) continue;
 
       list.push({
         id: `weed_${Date.now()}_${list.length}_${Math.floor(Math.random() * 1000)}`,
@@ -245,15 +254,16 @@ export const FarmGame: React.FC = () => {
     return list;
   };
 
-  const weedsRef = useRef<Weed[]>(generateInitialWeeds());
+  const [initialWeeds] = useState(generateInitialWeeds);
+  const weedsRef = useRef<Weed[]>(structuredClone(initialWeeds));
 
   const generateInitialChickens = (): ChickenState[] => [
     {
       id: 'chicken_1',
-      x: 350,
-      y: 180,
-      startX: 350,
-      startY: 180,
+      x: 705,
+      y: 240,
+      startX: 705,
+      startY: 240,
       vx: 0,
       vy: 0,
       direction: 'down',
@@ -264,10 +274,10 @@ export const FarmGame: React.FC = () => {
     },
     {
       id: 'chicken_2',
-      x: 650,
-      y: 180,
-      startX: 650,
-      startY: 180,
+      x: 780,
+      y: 220,
+      startX: 780,
+      startY: 220,
       vx: 0,
       vy: 0,
       direction: 'down',
@@ -278,9 +288,9 @@ export const FarmGame: React.FC = () => {
     },
     {
       id: 'chicken_3',
-      x: 500,
+      x: 740,
       y: 260,
-      startX: 500,
+      startX: 740,
       startY: 260,
       vx: 0,
       vy: 0,
@@ -292,10 +302,13 @@ export const FarmGame: React.FC = () => {
     }
   ];
 
-  const chickensRef = useRef<ChickenState[]>(generateInitialChickens());
+  const [initialChickens] = useState(generateInitialChickens);
+  const chickensRef = useRef<ChickenState[]>(structuredClone(initialChickens));
 
-  // UI rendering state force-updater
-  const [uiVersion, setUiVersion] = useState<number>(0);
+  // React displays immutable snapshots; the canvas keeps its fast mutable simulation.
+  const [farmUi, setFarmUi] = useState(() => ({ progress: structuredClone(initialProgress), inventory: createStarterInventory(), chest: Array<InventoryItem | null>(10).fill(null), notice: '' }));
+  const refreshUi = () => setFarmUi({ progress: structuredClone(farmRef.current), inventory: structuredClone(localPlayerRef.current.inventory), chest: structuredClone(chestItemsRef.current), notice: noticeRef.current.message });
+  const refreshUiFromEffect = useEffectEvent(refreshUi);
 
   // Chest UI open state
   const [isChestOpen, setIsChestOpen] = useState<boolean>(false);
@@ -308,7 +321,7 @@ export const FarmGame: React.FC = () => {
   const isNearChestRef = useRef<boolean>(false);
 
   const smokeParticlesRef = useRef<SmokeParticle[]>([]);
-  const fireParticlesRef = useRef<any[]>([]);
+  const fireParticlesRef = useRef<SmokeParticle[]>([]);
 
   // Preload assets
   useEffect(() => {
@@ -478,6 +491,9 @@ export const FarmGame: React.FC = () => {
       // Draw warm dirt path
       outCtx.fillStyle = '#d8b18a';
       outCtx.fillRect(480, 190, 40, 60);
+      outCtx.fillRect(275, 265, 75, 20);
+      outCtx.fillRect(650, 235, 90, 18);
+      outCtx.fillRect(725, 200, 20, 45);
 
       // Draw Soil Plot
       outCtx.fillStyle = '#5c4033';
@@ -642,27 +658,24 @@ export const FarmGame: React.FC = () => {
     indoorBgCanvasRef.current = inCanvas;
   }, [assetsLoaded]);
 
-  const addToInventory = (player: PlayerState, itemType: string): boolean => {
-    if (itemType !== 'watering_can') {
-      const existingSlotIdx = player.inventory.findIndex(
-        (slot) => slot !== null && slot.type === itemType && slot.count < 10
-      );
-      if (existingSlotIdx !== -1) {
-        const slot = player.inventory[existingSlotIdx];
-        if (slot) {
-          slot.count++;
-          return true;
-        }
-      }
+  const getWorld = (): FarmWorld => ({ progress: farmRef.current, crops: cropsRef.current, wildItems: wildItemsRef.current, weeds: weedsRef.current, chest: chestItemsRef.current, players: [localPlayerRef.current, remotePlayerRef.current] });
+  const showNotice = (message: string) => {
+    noticeRef.current = { message, until: Date.now() + 3500 };
+    refreshUi();
+  };
+  const performGameAction = (action: FarmAction) => {
+    if (!selectionComplete) return;
+    const p = localPlayerRef.current;
+    if (!isHost && isConnected) {
+      if (!hasHostStateRef.current) { showNotice('Waiting for your partner’s farm…'); return; }
+      if (pendingActionsRef.current.length >= 32) { showNotice('Waiting for your partner to catch up…'); return; }
+      pendingActionsRef.current.push({ id: ++nextActionIdRef.current, sessionId: farmRef.current.sessionId, action, position: { x: p.x, y: p.y, inHouse: p.inHouse } });
+      return;
     }
-
-    const emptySlotIdx = player.inventory.findIndex((slot) => slot === null);
-    if (emptySlotIdx !== -1) {
-      player.inventory[emptySlotIdx] = { type: itemType, count: 1 };
-      return true;
-    }
-
-    return false;
+    const previousLevel = getFarmLevel(farmRef.current.xp).level;
+    const result = applyFarmAction(getWorld(), p, action);
+    const nextLevel = getFarmLevel(farmRef.current.xp).level;
+    showNotice(nextLevel > previousLevel ? `Farm level ${nextLevel}! ${result.message}` : result.message);
   };
 
   const spawnPluckParticles = (x: number, y: number) => {
@@ -681,6 +694,7 @@ export const FarmGame: React.FC = () => {
   };
 
   const triggerInteract = () => {
+    if (!selectionComplete || isBoardOpenRef.current) return;
     if (isNearChestRef.current) {
       setIsChestOpen((prev) => !prev);
       return;
@@ -692,6 +706,8 @@ export const FarmGame: React.FC = () => {
 
     const p = localPlayerRef.current;
     if (!p.inHouse) {
+      if (near(p, MARKET, 60)) { setIsBoardOpen(true); return; }
+      if (near(p, COOP, 60)) { performGameAction({ type: 'coop' }); return; }
       // 1. Check crop harvesting
       let closestCropIdx = -1;
       let minDist = 35;
@@ -704,13 +720,7 @@ export const FarmGame: React.FC = () => {
       });
 
       if (closestCropIdx !== -1 && cropsRef.current[closestCropIdx].stage === 2) {
-        const cropType = cropsRef.current[closestCropIdx].type;
-        const success = addToInventory(p, cropType);
-        if (success) {
-          performGameAction({ type: 'harvest', index: closestCropIdx });
-        } else {
-          alertFullBackpack();
-        }
+        performGameAction({ type: 'harvest', cropId: cropsRef.current[closestCropIdx].id });
         return;
       }
 
@@ -728,13 +738,7 @@ export const FarmGame: React.FC = () => {
       });
 
       if (closestItem) {
-        const itemType = (closestItem as WildItem).type;
-        const success = addToInventory(p, itemType);
-        if (success) {
-          performGameAction({ type: 'pickup_item', itemId: (closestItem as WildItem).id });
-        } else {
-          alertFullBackpack();
-        }
+        performGameAction({ type: 'pickup_item', id: (closestItem as WildItem).id });
         return;
       }
 
@@ -751,41 +755,22 @@ export const FarmGame: React.FC = () => {
 
       if (closestWeed) {
         spawnPluckParticles(closestWeed.x, closestWeed.y);
-        performGameAction({ type: 'pluck_weed', weedId: closestWeed.id });
+        performGameAction({ type: 'pluck_weed', id: closestWeed.id });
         return;
       }
     }
   };
 
   const triggerUseHeldItem = () => {
-    if (isChestOpenRef.current) return;
+    if (!selectionComplete || isChestOpenRef.current || isBoardOpenRef.current) return;
 
     const p = localPlayerRef.current;
     if (!p.inHouse) {
       const selectedSlotIdx = selectedSlotRef.current;
       const heldItem = p.inventory[selectedSlotIdx];
 
-      if (heldItem && heldItem.type === 'seeds') {
-        // Plant crop on plot (plot: x [350, 650], y [250, 450])
-        const isOnPlot = p.x >= 350 && p.x <= 650 && p.y >= 250 && p.y <= 450;
-        if (isOnPlot) {
-          const newCrop: Crop = {
-            x: p.x,
-            y: p.y,
-            type: Math.random() < 0.6 ? 'carrot' : 'pumpkin',
-            stage: 0,
-            watered: false,
-            growthTimer: 0
-          };
-          performGameAction({ type: 'plant', crop: newCrop });
-
-          // Consume seed
-          heldItem.count--;
-          if (heldItem.count <= 0) {
-            p.inventory[selectedSlotIdx] = null;
-          }
-          setUiVersion((v) => v + 1);
-        }
+      if (heldItem && isSeed(heldItem.type)) {
+        performGameAction({ type: 'plant', slot: selectedSlotIdx });
       } else if (heldItem && heldItem.type === 'watering_can') {
         // Water crop
         let closestCropIdx = -1;
@@ -798,11 +783,31 @@ export const FarmGame: React.FC = () => {
           }
         });
         if (closestCropIdx !== -1 && !cropsRef.current[closestCropIdx].watered) {
-          performGameAction({ type: 'water', index: closestCropIdx });
+          performGameAction({ type: 'water', cropId: cropsRef.current[closestCropIdx].id });
         }
       }
     }
   };
+
+  const interactFromEffect = useEffectEvent(triggerInteract);
+  const activateItemFromEffect = useEffectEvent(triggerUseHeldItem);
+  const sendSnapshot = useEffectEvent(sendGameData);
+  const handleShortcut = useEffectEvent((e: KeyboardEvent) => {
+    if (!selectionComplete || e.repeat) return;
+    const key = e.key.toLowerCase();
+    if (key === 'b' || key === 'escape') {
+      setIsChestOpen(false);
+      setIsBoardOpen(key === 'b' ? !isBoardOpen : false);
+      keysRef.current = {};
+      if (key === 'escape' || isBoardOpen) canvasRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (isBoardOpen) return;
+    const slot = Number(e.key) - 1;
+    if (Number.isInteger(slot) && slot >= 0 && slot < localPlayerRef.current.inventory.length) setSelectedSlot(slot);
+    if (key === 'e') triggerInteract();
+    if (e.key === ' ' && (e.target as HTMLElement)?.tagName !== 'BUTTON') triggerUseHeldItem();
+  });
 
   // Set up local keyboard listeners
   useEffect(() => {
@@ -819,7 +824,7 @@ export const FarmGame: React.FC = () => {
       }
 
       const keyLower = e.key.toLowerCase();
-      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'w', 'a', 's', 'd'].includes(keyLower)) {
+      if (!isBoardOpenRef.current && activeEl?.tagName !== 'BUTTON' && ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'w', 'a', 's', 'd'].includes(keyLower)) {
         e.preventDefault();
       }
 
@@ -827,21 +832,7 @@ export const FarmGame: React.FC = () => {
       keysRef.current[keyLower] = true;
       keysRef.current[e.code] = true;
 
-      if (e.key === '1') {
-        setSelectedSlot(0);
-      } else if (e.key === '2') {
-        setSelectedSlot(1);
-      } else if (e.key === '3') {
-        setSelectedSlot(2);
-      }
-
-      if (keyLower === 'e') {
-        triggerInteract();
-      }
-
-      if (e.key === ' ') {
-        triggerUseHeldItem();
-      }
+      handleShortcut(e);
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -866,62 +857,9 @@ export const FarmGame: React.FC = () => {
     };
   }, []);
 
-  // Warning tracker for full backpack
-  const inventoryFullTimeRef = useRef<number>(0);
-  const lastChestTransferTimeRef = useRef<number>(0);
-  const alertFullBackpack = () => {
-    inventoryFullTimeRef.current = Date.now();
-  };
-
-  const performGameAction = (action: any) => {
-    if (!isHost && isConnected) {
-      // Client sends to Host to perform action
-      sendGameEvent({ type: 'farm_action', action });
-      return;
-    }
-
-    // Host or Single Player handles the action
-    switch (action.type) {
-      case 'plant':
-        // Check if there is already a crop within 25px
-        const dup = cropsRef.current.some(c => Math.hypot(c.x - action.crop.x, c.y - action.crop.y) < 25);
-        if (!dup) {
-          cropsRef.current.push(action.crop);
-        }
-        break;
-      case 'water':
-        if (cropsRef.current[action.index]) {
-          cropsRef.current[action.index].watered = true;
-        }
-        break;
-      case 'harvest':
-        if (cropsRef.current[action.index]) {
-          cropsRef.current.splice(action.index, 1);
-        }
-        break;
-      case 'pickup_item':
-        const itemObj = wildItemsRef.current.find(i => i.id === action.itemId);
-        if (itemObj && itemObj.active) {
-          itemObj.active = false;
-          itemObj.respawnTimer = 0;
-        }
-        break;
-      case 'chest_transfer':
-        chestItemsRef.current = [...action.chest];
-        break;
-      case 'pluck_weed':
-        weedsRef.current = weedsRef.current.filter((w) => w.id !== action.weedId);
-        break;
-      default:
-        break;
-    }
-    // Force UI update
-    setUiVersion(v => v + 1);
-  };
-
   // Synchronize character selections and starting states
-  useEffect(() => {
-    if (!gameData) return;
+  const receiveGameData = useEffectEvent(() => {
+    if (!gameData || gameData.game !== 'farm') return;
 
     if (gameData.type === 'selection') {
       setRemoteGender(gameData.gender);
@@ -934,16 +872,19 @@ export const FarmGame: React.FC = () => {
         remotePlayerRef.current.gender = gameData.player.gender;
         remotePlayerRef.current.inHouse = gameData.player.inHouse;
         remotePlayerRef.current.facingUp = gameData.player.facingUp;
-        if (gameData.player.inventory) {
+        if (!isHost && gameData.player.inventory) {
           remotePlayerRef.current.inventory = gameData.player.inventory;
         }
       }
       if (!isHost) {
         // Client receives master state from Host
-        if (gameData.chest) {
-          if (Date.now() - lastChestTransferTimeRef.current > 800) {
-            chestItemsRef.current = [...gameData.chest];
-          }
+        if (gameData.chest) chestItemsRef.current = gameData.chest;
+        if (gameData.farm) { farmRef.current = gameData.farm; hasHostStateRef.current = true; }
+        if (gameData.guestInventory) localPlayerRef.current.inventory = gameData.guestInventory;
+        if (typeof gameData.ack === 'number') {
+          if (gameData.ack > guestAckRef.current && gameData.notice) showNotice(gameData.notice);
+          guestAckRef.current = gameData.ack;
+          pendingActionsRef.current = pendingActionsRef.current.filter(request => request.id > gameData.ack);
         }
         if (gameData.crops) cropsRef.current = [...gameData.crops];
         if (gameData.wildItems) wildItemsRef.current = [...gameData.wildItems];
@@ -952,59 +893,45 @@ export const FarmGame: React.FC = () => {
         if (gameData.elapsedTime !== undefined) {
           elapsedTimeRef.current = gameData.elapsedTime;
         }
-        setUiVersion(v => v + 1);
-      }
-    } else if (gameData.type === 'action') {
-      if (isHost) {
-        // Host performs the action requested by Client
-        performGameAction(gameData.action);
+      } else if (Array.isArray(gameData.actions)) {
+        const result = processFarmRequests(getWorld(), remotePlayerRef.current, gameData.actions, guestAckRef.current);
+        guestAckRef.current = result.lastId;
+        if (result.message) guestNoticeRef.current = result.message;
       }
     }
-  }, [gameData, isHost, performGameAction]);
+  });
+  // The peer context exposes incoming network packets as state; apply each packet once.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { receiveGameData(); }, [gameData]);
+
+  // Refresh the lightweight board/HUD without restarting physics on every packet.
+  useEffect(() => {
+    if (!selectionComplete) return;
+    const timer = window.setInterval(() => refreshUiFromEffect(), 250);
+    return () => window.clearInterval(timer);
+  }, [selectionComplete]);
 
   // Sync selection events
-  useEffect(() => {
+  const sendSelection = useEffectEvent(() => {
     if (localGender) {
-      sendGameData({ type: 'selection', gender: localGender });
+      sendGameData({ game: 'farm', type: 'selection', gender: localGender });
       localPlayerRef.current.gender = localGender;
     }
-  }, [localGender]);
-
-  // Check if both selections are complete
+  });
   useEffect(() => {
-    // If not connected to peer, local selection is enough
-    if (!isConnected) {
-      if (localGender) {
-        setRemoteGender(localGender === 'male' ? 'female' : 'male'); // mock remote gender
-        setSelectionComplete(true);
-      }
-    } else {
-      if (localGender && remoteGender) {
-        setSelectionComplete(true);
-      }
-    }
-  }, [localGender, remoteGender, isConnected]);
-
-  // Restart/Action trigger from peer
-  useEffect(() => {
-    if (gameEvent) {
-      if (gameEvent.type === 'restart_farm') {
-        handleRestartLocal();
-        resetGameEvent();
-      } else if (gameEvent.type === 'farm_action') {
-        if (isHost) {
-          performGameAction(gameEvent.action);
-        }
-        resetGameEvent();
-      }
-    }
-  }, [gameEvent, isHost, performGameAction, resetGameEvent]);
+    sendSelection();
+    if (!localGender || selectionComplete) return;
+    const timer = window.setInterval(() => sendSelection(), 500);
+    return () => window.clearInterval(timer);
+  }, [localGender, selectionComplete]);
 
   const handleRestartLocal = () => {
     setLocalGender(null);
     setRemoteGender(null);
-    setSelectionComplete(false);
     setSelectedSlot(0);
+    setIsBoardOpen(false);
+    setIsChestOpen(false);
+    keysRef.current = {};
     localPlayerRef.current = {
       x: isHost ? 480 : 520,
       y: 350,
@@ -1013,11 +940,7 @@ export const FarmGame: React.FC = () => {
       isMoving: false,
       inHouse: false,
       facingUp: false,
-      inventory: [
-        { type: 'seeds', count: 1 },
-        { type: 'watering_can', count: 1 },
-        null
-      ]
+      inventory: localPlayerRef.current.inventory
     };
     remotePlayerRef.current = {
       x: isHost ? 520 : 480,
@@ -1027,21 +950,26 @@ export const FarmGame: React.FC = () => {
       isMoving: false,
       inHouse: false,
       facingUp: false,
-      inventory: [
-        { type: 'seeds', count: 1 },
-        { type: 'watering_can', count: 1 },
-        null
-      ]
+      inventory: remotePlayerRef.current.inventory
     };
     smokeParticlesRef.current = [];
     fireParticlesRef.current = [];
-    weedsRef.current = generateInitialWeeds();
-    elapsedTimeRef.current = 0;
+    // Changing characters keeps crops, inventories and shared farm progress intact.
   };
+
+  // Restart/Action trigger from peer
+  const receiveGameEvent = useEffectEvent(() => {
+    if (gameEvent?.type === 'restart_farm') {
+      handleRestartLocal();
+      resetGameEvent();
+    }
+  });
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Apply a received peer command.
+  useEffect(() => { receiveGameEvent(); }, [gameEvent]);
 
   const triggerRestart = () => {
     handleRestartLocal();
-    if (isHost) {
+    if (isConnected) {
       sendGameEvent({ type: 'restart_farm' });
     }
   };
@@ -1056,22 +984,12 @@ export const FarmGame: React.FC = () => {
     localPlayerRef.current.gender = localGender;
     localPlayerRef.current.inHouse = false;
     localPlayerRef.current.facingUp = false;
-    localPlayerRef.current.inventory = [
-      { type: 'seeds', count: 1 },
-      { type: 'watering_can', count: 1 },
-      null
-    ];
 
     remotePlayerRef.current.x = isHost ? 520 : 480;
     remotePlayerRef.current.y = 350;
     remotePlayerRef.current.gender = remoteGender;
     remotePlayerRef.current.inHouse = false;
     remotePlayerRef.current.facingUp = false;
-    remotePlayerRef.current.inventory = [
-      { type: 'seeds', count: 1 },
-      { type: 'watering_can', count: 1 },
-      null
-    ];
 
     let animationId: number;
 
@@ -1084,7 +1002,9 @@ export const FarmGame: React.FC = () => {
       const hTop = 80 - padding;
       const hBottom = 190 + padding;
 
-      return x > hLeft && x < hRight && y > hTop && y < hBottom;
+      return (x > hLeft && x < hRight && y > hTop && y < hBottom)
+        || (x > MARKET.x - 46 && x < MARKET.x + 46 && y > MARKET.y - 76 && y < MARKET.y - 8)
+        || (x > COOP.x - 44 && x < COOP.x + 44 && y > COOP.y - 66 && y < COOP.y - 6);
     };
 
     const checkHouseInteriorCollision = (x: number, y: number): boolean => {
@@ -1116,6 +1036,7 @@ export const FarmGame: React.FC = () => {
       return false;
     };
 
+    let syncTicks = 0;
     const updatePhysics = () => {
       const p = localPlayerRef.current;
 
@@ -1136,27 +1057,30 @@ export const FarmGame: React.FC = () => {
 
         // LB (4) -> Cycle inventory backward
         if (isButtonJustPressed(4)) {
-          setSelectedSlot((curr) => (curr - 1 + 3) % 3);
+          setSelectedSlot((curr) => (curr - 1 + p.inventory.length) % p.inventory.length);
         }
         // RB (5) -> Cycle inventory forward
         if (isButtonJustPressed(5)) {
-          setSelectedSlot((curr) => (curr + 1) % 3);
+          setSelectedSlot((curr) => (curr + 1) % p.inventory.length);
         }
 
         // Button A (0) -> Use held item (Space)
         if (isButtonJustPressed(0)) {
-          triggerUseHeldItem();
+          activateItemFromEffect();
         }
 
         // Button X (2) -> Interact (E)
         if (isButtonJustPressed(2)) {
-          triggerInteract();
+          interactFromEffect();
         }
 
         // Button B (1) -> Close chest
-        if (isButtonJustPressed(1) && isChestOpenRef.current) {
+        if (isButtonJustPressed(1)) {
           setIsChestOpen(false);
+          setIsBoardOpen(false);
+          canvasRef.current?.focus({ preventScroll: true });
         }
+        if (isButtonJustPressed(3)) { setIsChestOpen(false); setIsBoardOpen(open => !open); }
 
         prevGamepadButtonsRef.current = gp.buttons.map((b) => b.pressed);
       } else {
@@ -1169,16 +1093,7 @@ export const FarmGame: React.FC = () => {
 
       // Host or single-player ticks crop growth and wild items respawn
       if (isHost || !isConnected) {
-        cropsRef.current.forEach((crop) => {
-          if (crop.stage < 2 && crop.watered) {
-            crop.growthTimer += 1 / 60;
-            if (crop.growthTimer >= 8) { // 8 seconds per growth stage
-              crop.stage++;
-              crop.growthTimer = 0;
-              crop.watered = false; // reset water status for next stage
-            }
-          }
-        });
+        tickFarm({ progress: farmRef.current, crops: cropsRef.current }, 1 / 60, elapsedTimeRef.current);
 
         // Wild item respawn logic
         wildItemsRef.current.forEach((item) => {
@@ -1207,6 +1122,7 @@ export const FarmGame: React.FC = () => {
 
                   if (wx >= 395 && wx <= 605 && wy >= 55 && wy <= 215) continue;
                   if (wx >= 330 && wx <= 670 && wy >= 230 && wy <= 470) continue;
+                  if (Math.hypot(wx - MARKET.x, wy - MARKET.y) < 75 || Math.hypot(wx - COOP.x, wy - COOP.y) < 75) continue;
 
                   weedsRef.current.push({
                     id: `spawn_${currentSpTime}_${Math.floor(Math.random() * 1000)}`,
@@ -1215,7 +1131,7 @@ export const FarmGame: React.FC = () => {
                     type: Math.floor(Math.random() * 3) + 1
                   });
                   spawned = true;
-                  setUiVersion((v) => v + 1);
+                  refreshUiFromEffect();
                 }
               }
             }
@@ -1287,7 +1203,7 @@ export const FarmGame: React.FC = () => {
         });
       }
 
-      if (isChestOpenRef.current) {
+      if (isChestOpenRef.current || isBoardOpenRef.current) {
         p.isMoving = false;
       } else {
         let dx = 0;
@@ -1352,8 +1268,8 @@ export const FarmGame: React.FC = () => {
         }
 
         // Propose new positions
-        let nextX = p.x + vx;
-        let nextY = p.y + vy;
+        const nextX = p.x + vx;
+        const nextY = p.y + vy;
 
         if (!p.inHouse) {
           // --- OUTDOORS MOVEMENT ---
@@ -1389,13 +1305,15 @@ export const FarmGame: React.FC = () => {
         }
       }
 
-      if (isHost) {
+      if (isHost || !isConnected) {
         elapsedTimeRef.current += 1 / 60;
       }
 
-      // Sync character position and master states (Host only) with remote peer
-      if (isHost) {
-        sendGameData({
+      // Ten snapshots per second; queued requests are resent until host acknowledgement.
+      syncTicks++;
+      if (isConnected && syncTicks % 6 === 0 && isHost) {
+        sendSnapshot({
+          game: 'farm',
           type: 'movement',
           player: {
             x: p.x,
@@ -1412,11 +1330,16 @@ export const FarmGame: React.FC = () => {
           wildItems: wildItemsRef.current,
           weeds: weedsRef.current,
           chickens: chickensRef.current,
-          elapsedTime: elapsedTimeRef.current
+          elapsedTime: elapsedTimeRef.current,
+          farm: farmRef.current,
+          guestInventory: remotePlayerRef.current.inventory,
+          ack: guestAckRef.current,
+          notice: guestNoticeRef.current
         });
-      } else {
+      } else if (isConnected && syncTicks % 6 === 0) {
         // Client only sends player state
-        sendGameData({
+        sendSnapshot({
+          game: 'farm',
           type: 'movement',
           player: {
             x: p.x,
@@ -1426,8 +1349,8 @@ export const FarmGame: React.FC = () => {
             gender: p.gender,
             inHouse: p.inHouse,
             facingUp: p.facingUp,
-            inventory: p.inventory
-          }
+          },
+          actions: pendingActionsRef.current
         });
       }
 
@@ -1768,6 +1691,7 @@ export const FarmGame: React.FC = () => {
         if (chimneyGifRef.current) {
           chimneyGifRef.current.style.display = 'none';
         }
+        drawFarmStations(ctx, farmRef.current, elapsedTimeRef.current);
 
         // 2. Draw Planted Crops on soil plot
         cropsRef.current.forEach((crop) => {
@@ -1805,8 +1729,12 @@ export const FarmGame: React.FC = () => {
             ctx.font = '15px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
-            const cropEmoji = crop.type === 'carrot' ? '🥕' : '🎃';
+            const cropEmoji = getItemEmoji(crop.type);
             ctx.fillText(cropEmoji, crop.x, crop.y + 2);
+          }
+          if (crop.stage < 2 && !crop.watered) {
+            ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('💧', crop.x, crop.y - 16);
           }
         });
 
@@ -1831,11 +1759,11 @@ export const FarmGame: React.FC = () => {
         // 3.5 Draw Wild Weeds
         weedsRef.current.forEach((weed) => {
           const type = weed.type || (parseInt(weed.id.split('_')[2] || '0') % 3) + 1;
-          let img: HTMLImageElement | null = null;
-          let w = 18;
-          let h = 18;
-          let shadowW = 6;
-          let shadowH = 2;
+          let img: HTMLImageElement | null;
+          let w: number;
+          let h: number;
+          let shadowW: number;
+          let shadowH: number;
 
           if (type === 1) {
             img = weed1ImageRef.current;
@@ -1937,7 +1865,11 @@ export const FarmGame: React.FC = () => {
         });
         const closestCrop = closestCropIdx !== -1 ? cropsRef.current[closestCropIdx] : null;
 
-        if (closestCrop && closestCrop.stage === 2) {
+        if (near(p1, MARKET, 60)) {
+          drawTooltip(ctx, 'VILLAGE MARKET', '[E] Shop, orders & upgrades', MARKET.x, MARKET.y - 80);
+        } else if (near(p1, COOP, 60)) {
+          drawTooltip(ctx, 'CHICKEN COOP', farmRef.current.eggs ? '[E] Collect your eggs' : farmRef.current.coopSeconds > 0 ? 'Happy hens are nesting…' : '[E] Feed 1 carrot seed', COOP.x, COOP.y - 70);
+        } else if (closestCrop && closestCrop.stage === 2) {
           drawTooltip(ctx, 'READY CROP', 'Press [E] to Harvest', closestCrop.x, closestCrop.y - 12);
         } else {
           // Check proximity to wild items
@@ -1974,7 +1906,7 @@ export const FarmGame: React.FC = () => {
               const isOnPlot = p1.x >= 350 && p1.x <= 650 && p1.y >= 250 && p1.y <= 450;
               if (isOnPlot) {
                 const heldItem = p1.inventory[selectedSlotRef.current];
-                if (heldItem && heldItem.type === 'seeds') {
+                if (heldItem && isSeed(heldItem.type)) {
                   drawTooltip(ctx, 'SOIL PLOT', 'Press [Space] to Plant', p1.x, p1.y - 45);
                 } else if (heldItem && heldItem.type === 'watering_can' && closestCrop && !closestCrop.watered) {
                   drawTooltip(ctx, 'DRY CROP', 'Press [Space] to Water', closestCrop.x, closestCrop.y - 12);
@@ -2029,6 +1961,15 @@ export const FarmGame: React.FC = () => {
         }
 
         ctx.restore(); // Restores camera translate
+        if (getWeather(elapsedTimeRef.current) === 'rain') {
+          ctx.fillStyle = '#294f711a'; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.strokeStyle = '#d1eef180'; ctx.lineWidth = 1;
+          for (let i = 0; i < 70; i++) {
+            const x = (i * 137 + elapsedTimeRef.current * 50) % CANVAS_WIDTH;
+            const y = (i * 89 + elapsedTimeRef.current * 270) % CANVAS_HEIGHT;
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 10); ctx.stroke();
+          }
+        }
       }
 
       // Draw Retro GBA Clock Widget in top right (virtual screen space)
@@ -2083,9 +2024,12 @@ export const FarmGame: React.FC = () => {
       ctx.fillStyle = '#f8f9fa';
       ctx.font = 'bold 9px Orbitron';
       ctx.fillText(clockInfo.timeStr, 688, 37);
+      ctx.font = '10px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#f2f6d5';
+      ctx.fillText(getWeather(elapsedTimeRef.current) === 'rain' ? 'RAIN · Crops watered' : 'SUNNY · Rain every 2 min', 782, 67);
 
       // Draw Retro GBA Inventory HUD in bottom middle (virtual screen space)
-      const hudW = 140;
+      const slotCount = p1.inventory.length;
+      const hudW = slotCount * 38 + 16;
       const hudH = 44;
       const hudX = (CANVAS_WIDTH - hudW) / 2;
       const hudY = CANVAS_HEIGHT - hudH - 15;
@@ -2102,15 +2046,15 @@ export const FarmGame: React.FC = () => {
       ctx.fill();
       ctx.stroke();
 
-      // Draw the 3 inventory slots
+      // Backpack grows from six to eight slots with the shared upgrade.
       const slotSize = 30;
       const slotGap = 8;
-      const totalSlotsWidth = 3 * slotSize + 2 * slotGap;
+      const totalSlotsWidth = slotCount * slotSize + (slotCount - 1) * slotGap;
       const startSlotX = hudX + (hudW - totalSlotsWidth) / 2;
       const slotY = hudY + (hudH - slotSize) / 2;
 
       const curSelected = selectedSlotRef.current;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < slotCount; i++) {
         const sx = startSlotX + i * (slotSize + slotGap);
 
         // Slot background
@@ -2153,16 +2097,26 @@ export const FarmGame: React.FC = () => {
             ctx.textBaseline = 'bottom';
             ctx.fillText(String(item.count), sx + slotSize - 3, slotY + slotSize - 2);
           }
+          if (isSeed(item.type)) {
+            ctx.fillStyle = '#a6df8d'; ctx.fillRect(sx + 2, slotY + slotSize - 5, 4, 3);
+          }
         }
       }
 
-      // Draw Backpack Full alert (in screen space)
-      if (Date.now() - inventoryFullTimeRef.current < 2000) {
-        ctx.fillStyle = '#ff4a4a';
-        ctx.font = 'bold 12px Orbitron';
+      ctx.fillStyle = '#f7f2df'; ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(getItemName(p1.inventory[curSelected]?.type ?? null) || 'Empty slot', CANVAS_WIDTH / 2, hudY - 5);
+      const order = getOrder(farmRef.current.ordersCompleted);
+      ctx.textAlign = 'left'; ctx.fillStyle = '#fff4d3'; ctx.font = '10px monospace';
+      ctx.fillText(`ORDER: ${order.name} · ${Object.entries(order.needs).map(([item, amount]) => `${farmRef.current.delivered[item] ?? 0}/${amount} ${item}`).join('  ')}`, 16, 91);
+      if (Date.now() < noticeRef.current.until && !isBoardOpenRef.current) {
+        ctx.font = 'bold 11px monospace';
+        const textWidth = ctx.measureText(noticeRef.current.message).width;
+        ctx.fillStyle = '#11251aeb';
+        ctx.fillRect((CANVAS_WIDTH - textWidth) / 2 - 14, 104, textWidth + 28, 30);
+        ctx.fillStyle = '#f8e8ad';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('BACKPACK FULL!', CANVAS_WIDTH / 2, 100);
+        ctx.fillText(noticeRef.current.message, CANVAS_WIDTH / 2, 119);
       }
 
       ctx.restore(); // Restores viewport scale & letterbox offset
@@ -2193,88 +2147,18 @@ export const FarmGame: React.FC = () => {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [selectionComplete, assetsLoaded, isHost, localGender, remoteGender]);
+  }, [selectionComplete, assetsLoaded, isHost, isConnected, localGender, remoteGender]);
 
   const transferToChest = (playerSlotIdx: number) => {
-    const p = localPlayerRef.current;
-    const item = p.inventory[playerSlotIdx];
+    const item = farmUi.inventory[playerSlotIdx];
     if (!item) return;
-
-    const newChest = chestItemsRef.current.map((slot) => (slot ? { ...slot } : null));
-
-    if (item.type !== 'watering_can') {
-      for (let i = 0; i < newChest.length; i++) {
-        const slot = newChest[i];
-        if (slot && slot.type === item.type && slot.count < 10) {
-          const space = 10 - slot.count;
-          const transferAmt = Math.min(space, item.count);
-          slot.count += transferAmt;
-          item.count -= transferAmt;
-          if (item.count <= 0) {
-            p.inventory[playerSlotIdx] = null;
-            break;
-          }
-        }
-      }
-    }
-
-    if (item.count > 0) {
-      const emptyChestIdx = newChest.findIndex((slot) => slot === null);
-      if (emptyChestIdx !== -1) {
-        newChest[emptyChestIdx] = { type: item.type, count: item.count };
-        p.inventory[playerSlotIdx] = null;
-      }
-    }
-
-    // Set local chest state and lock sync immediately to avoid lag/flashing
-    chestItemsRef.current = newChest;
-    lastChestTransferTimeRef.current = Date.now();
-
-    performGameAction({ type: 'chest_transfer', chest: newChest });
-    setUiVersion((v) => v + 1);
+    performGameAction({ type: 'chest', direction: 'deposit', slot: playerSlotIdx, itemType: item.type });
   };
 
   const transferToPlayer = (chestSlotIdx: number) => {
-    const p = localPlayerRef.current;
-    const item = chestItemsRef.current[chestSlotIdx];
+    const item = farmUi.chest[chestSlotIdx];
     if (!item) return;
-
-    const newChest = chestItemsRef.current.map((slot) => (slot ? { ...slot } : null));
-    const chestItem = newChest[chestSlotIdx];
-    if (!chestItem) return;
-
-    if (chestItem.type !== 'watering_can') {
-      for (let i = 0; i < p.inventory.length; i++) {
-        const slot = p.inventory[i];
-        if (slot && slot.type === chestItem.type && slot.count < 10) {
-          const space = 10 - slot.count;
-          const transferAmt = Math.min(space, chestItem.count);
-          slot.count += transferAmt;
-          chestItem.count -= transferAmt;
-          if (chestItem.count <= 0) {
-            newChest[chestSlotIdx] = null;
-            break;
-          }
-        }
-      }
-    }
-
-    if (chestItem.count > 0) {
-      const emptyPlayerIdx = p.inventory.findIndex((slot) => slot === null);
-      if (emptyPlayerIdx !== -1) {
-        p.inventory[emptyPlayerIdx] = { type: chestItem.type, count: chestItem.count };
-        newChest[chestSlotIdx] = null;
-      } else {
-        alertFullBackpack();
-      }
-    }
-
-    // Set local chest state and lock sync immediately to avoid lag/flashing
-    chestItemsRef.current = newChest;
-    lastChestTransferTimeRef.current = Date.now();
-
-    performGameAction({ type: 'chest_transfer', chest: newChest });
-    setUiVersion((v) => v + 1);
+    performGameAction({ type: 'chest', direction: 'withdraw', slot: chestSlotIdx, itemType: item.type });
   };
 
   if (!assetsLoaded) {
@@ -2306,7 +2190,12 @@ export const FarmGame: React.FC = () => {
 
       {/* Canvas container */}
       <div className="canvas-container" style={{ position: 'relative' }}>
-        <canvas ref={canvasRef} width={isFullscreen ? 1920 : CANVAS_WIDTH} height={isFullscreen ? 1080 : CANVAS_HEIGHT} />
+        <canvas ref={canvasRef} tabIndex={0} aria-label="Farm world. Move with WASD, use items with Space, interact with E, and open the board with B." width={isFullscreen ? 1920 : CANVAS_WIDTH} height={isFullscreen ? 1080 : CANVAS_HEIGHT} />
+        {selectionComplete && <button className="farm-board-launch" onClick={() => { setIsChestOpen(false); setIsBoardOpen(true); keysRef.current = {}; }}>
+          <strong>🪙 {farmUi.progress.coins} · Farm level {getFarmLevel(farmUi.progress.xp).level}</strong>
+          <small>🌻 Farm board [B] · Orders, shop & upgrades</small>
+        </button>}
+        {selectionComplete && isBoardOpen && <FarmBoard progress={farmUi.progress} inventory={farmUi.inventory} chest={farmUi.chest} notice={farmUi.notice} onAction={performGameAction} onClose={closeFarmBoard} />}
 
         {/* Animated Chimney GIF overlay */}
         <img
@@ -2335,9 +2224,9 @@ export const FarmGame: React.FC = () => {
         {/* Storage Chest UI Overlay */}
         <ChestOverlay
           isOpen={isChestOpen}
-          uiVersion={uiVersion}
-          chestItems={chestItemsRef.current}
-          playerInventory={localPlayerRef.current.inventory}
+          notice={farmUi.notice}
+          chestItems={farmUi.chest}
+          playerInventory={farmUi.inventory}
           onClose={() => setIsChestOpen(false)}
           onTransferToPlayer={transferToPlayer}
           onTransferToChest={transferToChest}
@@ -2346,10 +2235,11 @@ export const FarmGame: React.FC = () => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
         <div>
-          <span>Walk: </span><span style={{ color: 'var(--text-primary)' }}>WASD / Arrows</span> | <span>Action: </span><span style={{ color: 'var(--text-primary)' }}>Space (Use Item)</span> | <span>Interact: </span><span style={{ color: 'var(--text-primary)' }}>E (Harvest/Chest)</span> | <span>Controller: </span><span style={{ color: 'var(--text-primary)' }}>Left Stick / D-pad (Move), Button A (Use Item), Button X (Interact), LB / RB (Cycle slots)</span>
+          <span>Walk: </span><span style={{ color: 'var(--text-primary)' }}>WASD / Arrows</span> · <span style={{ color: 'var(--text-primary)' }}>1–{farmUi.inventory.length} Select · Space Plant/Water · E Harvest/Interact · B Farm board</span><br />
+          <span>Controller: Stick to move · A use · X interact · Y board · B close · LB/RB select. Use mouse or keyboard to browse the board.</span>
         </div>
         <div>
-          <span>Farm Together: </span><span style={{ color: 'var(--neon-yellow)', fontWeight: 600 }}>Spawned at empty center plot</span>
+          <span style={{ color: 'var(--neon-yellow)', fontWeight: 600 }}>Grow · Trade · Build together</span>
         </div>
       </div>
     </div>

@@ -333,7 +333,7 @@ export const Lobby: React.FC = () => {
               </div>
               <div className="game-card-content">
                 <h3 className="game-card-title">Farm Together</h3>
-                <p className="game-card-desc">Choose a character and explore a cozy 2D farm together in a classic GBA-style top-down layout.</p>
+                <p className="game-card-desc">Grow four crops, raise happy hens, fill village orders, and build a thriving homestead with shared coins and upgrades.</p>
                 <span className="game-card-players">Co-op Farm Exploration</span>
               </div>
             </div>
@@ -349,7 +349,7 @@ export const Lobby: React.FC = () => {
                 {activeGame === 'platformer' && 'Gate It (Co-op Platformer)'}
                 {activeGame === 'shooter' && 'Arena Survival (Top-Down Survival)'}
                 {activeGame === 'chained' && 'Chained Together (Climbing Physics)'}
-                {activeGame === 'farm' && 'Farm Together (Top-Down GBA)'}
+                {activeGame === 'farm' && 'Farm Together: Harvest & Home'}
                 {!activeGame && 'No Game Selected'}
               </span>
             </div>

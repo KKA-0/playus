@@ -18,7 +18,7 @@ export const CharacterSelection: React.FC<CharacterSelectionProps> = ({
       <h2 className="overlay-title font-display text-yellow" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>
         WHO WILL PLAY?
       </h2>
-      <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Select your GBA character sprite to start the farm</p>
+      <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Grow crops, raise happy hens, and build your shared homestead.</p>
 
       <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
         {/* Male option card */}
@@ -31,7 +31,7 @@ export const CharacterSelection: React.FC<CharacterSelectionProps> = ({
             <img src="/male.png" alt="Male Farmer" style={{ width: '60px', height: '60px', imageRendering: 'pixelated' }} />
           </div>
           <h3 className="font-display" style={{ fontSize: '1rem', margin: '0.75rem 0 0.25rem 0', color: 'var(--text-primary)' }}>MALE</h3>
-          <span style={{ fontSize: '0.75rem', color: 'var(--neon-cyan)' }}>GBA Sprite 1</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--neon-cyan)' }}>Ready for the harvest</span>
         </div>
 
         {/* Female option card */}
@@ -44,11 +44,12 @@ export const CharacterSelection: React.FC<CharacterSelectionProps> = ({
             <img src="/female.png" alt="Female Farmer" style={{ width: '60px', height: '60px', imageRendering: 'pixelated' }} />
           </div>
           <h3 className="font-display" style={{ fontSize: '1rem', margin: '0.75rem 0 0.25rem 0', color: 'var(--text-primary)' }}>FEMALE</h3>
-          <span style={{ fontSize: '0.75rem', color: 'var(--neon-magenta)' }}>GBA Sprite 2</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--neon-magenta)' }}>Ready for the harvest</span>
         </div>
       </div>
 
       {/* Selection status messages */}
+      <p style={{ fontSize: '0.8rem', color: '#d8dfab', margin: '1rem 0 0' }}>Start with 8 seeds · Open the farm board with B · Progress lasts for this session</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
         <div style={{ color: localGender ? 'var(--neon-green)' : 'var(--text-secondary)' }}>
           You: {localGender ? `Selected ${localGender.toUpperCase()}` : 'Choosing...'}

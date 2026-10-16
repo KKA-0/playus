@@ -3,74 +3,11 @@ import { usePeer } from '../../context/PeerContext';
 import { Gamepad2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-// Game constants
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 480;
-const TILE_SIZE = 40;
-const ROWS = CANVAS_HEIGHT / TILE_SIZE; // 12
-const COLS = CANVAS_WIDTH / TILE_SIZE; // 20
-
-const GRAVITY = 0.58;
-const WALK_SPEED = 4.2;
-const JUMP_FORCE = -11.6;
-
-// Tile types
-const TILE_SOLID = 1;
-const TILE_SPIKES = 2;
-const TILE_TERMINAL = 3; // Door Unlock Terminal / Switch
-const TILE_DOOR = 4;     // Exit Security Door
-const TILE_GATE = 5;     // Pressure Gate
-const TILE_SWITCH = 6;   // Pressure Switch
-
-// 4 Levels Map Data (12 rows x 20 cols)
-// 1 = solid block, 2 = spikes, 3 = door terminal, 4 = exit door, 5 = gate, 6 = switch
-const LEVELS = [
-  // LEVEL 1: Introduction to cooperation ("PILOT")
-  [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 6, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 6, 0, 0, 0, 0, 3, 1], // Switch at col 3 (raised), gate at col 11, return switch at col 13, terminal at col 18
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  ],
-  // LEVEL 2: Double split paths ("DON'T WORRY!")
-  [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 4, 1],
-    [1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 6, 0, 3, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  ],
-  // LEVEL 3: Precision jumping, spikes, switch coordination ("DOOMED?")
-  [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1],
-    [1, 0, 0, 0, 6, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 5, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 6, 0, 0, 3, 0, 1],
-    [1, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  ]
-];
+import {
+  LEVELS, CANVAS_WIDTH, CANVAS_HEIGHT, TILE_SIZE, ROWS, COLS,
+  GRAVITY, WALK_SPEED, JUMP_FORCE, TILE_SOLID, TILE_SPIKES, TILE_TERMINAL,
+  TILE_DOOR, TILE_GATE, TILE_SWITCH, getLevelSpawns, getNextLevelIndex, resolveTileCollisions,
+} from './gateIt/levels';
 
 interface PlayerState {
   x: number;
@@ -431,7 +368,7 @@ export const PlatformerGame: React.FC = () => {
   }, [isConnected, volume]);
 
   // Particle Spawner Helper
-  const spawnParticles = (x: number, y: number, color: string, count = 12, speed = 2.5) => {
+  const spawnParticles = useCallback((x: number, y: number, color: string, count = 12, speed = 2.5) => {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const spd = (Math.random() * 0.7 + 0.3) * speed;
@@ -447,43 +384,14 @@ export const PlatformerGame: React.FC = () => {
         maxLife: Math.random() * 20 + 20
       });
     }
-  };
+  }, []);
 
-  // Reset players to level start positions
-  const resetPlayerPositions = (levelIdx: number) => {
-    if (levelIdx === 0) {
-      localPlayerRef.current.x = 80;
-      localPlayerRef.current.y = 350;
-      remotePlayerRef.current.x = 120;
-      remotePlayerRef.current.y = 350;
-      remoteTargetRef.current.x = 120;
-      remoteTargetRef.current.y = 350;
-    } else if (levelIdx === 1) {
-      // Level 2 splits: Host bottom-left, Client top-left
-      if (isHost) {
-        localPlayerRef.current.x = 80;
-        localPlayerRef.current.y = 350;
-        remotePlayerRef.current.x = 80;
-        remotePlayerRef.current.y = 80;
-        remoteTargetRef.current.x = 80;
-        remoteTargetRef.current.y = 80;
-      } else {
-        localPlayerRef.current.x = 80;
-        localPlayerRef.current.y = 80;
-        remotePlayerRef.current.x = 80;
-        remotePlayerRef.current.y = 350;
-        remoteTargetRef.current.x = 80;
-        remoteTargetRef.current.y = 350;
-      }
-    } else {
-      // Level 3
-      localPlayerRef.current.x = 60;
-      localPlayerRef.current.y = 320;
-      remotePlayerRef.current.x = 100;
-      remotePlayerRef.current.y = 320;
-      remoteTargetRef.current.x = 100;
-      remoteTargetRef.current.y = 320;
-    }
+  // Both peers use the same per-level spawns, with their local/remote roles reversed.
+  const resetPlayerPositions = useCallback((levelIdx: number) => {
+    const { local, remote } = getLevelSpawns(levelIdx, isHost);
+    Object.assign(localPlayerRef.current, local);
+    Object.assign(remotePlayerRef.current, remote);
+    Object.assign(remoteTargetRef.current, remote, { vx: 0, vy: 0, isJumping: false, flipX: false, animFrame: 0 });
 
     localPlayerRef.current.vx = 0;
     localPlayerRef.current.vy = 0;
@@ -493,11 +401,15 @@ export const PlatformerGame: React.FC = () => {
     remotePlayerRef.current.vx = 0;
     remotePlayerRef.current.vy = 0;
     remotePlayerRef.current.isJumping = false;
+    remotePlayerRef.current.ridingPlayer = false;
+    coyoteTimerRef.current = 0;
+    jumpBufferTimerRef.current = 0;
+    prevGateOpenRef.current = false;
 
     // Spawn respawn particle burst
     spawnParticles(localPlayerRef.current.x + 12, localPlayerRef.current.y + 16, '#00f0ff', 16);
     spawnParticles(remotePlayerRef.current.x + 12, remotePlayerRef.current.y + 16, '#ff00a0', 16);
-  };
+  }, [isHost, spawnParticles]);
 
   const restartCurrentLevel = () => {
     const levelIdx = levelStateRef.current.currentLevel;
@@ -567,7 +479,7 @@ export const PlatformerGame: React.FC = () => {
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
     };
-  }, [isHost]);
+  }, [isHost, resetPlayerPositions]);
 
   // Handle incoming data
   useEffect(() => {
@@ -586,7 +498,7 @@ export const PlatformerGame: React.FC = () => {
         };
       }
 
-      if (gameData.levelState) {
+      if (gameData.levelState && LEVELS[gameData.levelState.currentLevel]) {
         const oldLevel = levelStateRef.current.currentLevel;
         const oldDoorState = levelStateRef.current.doorUnlocked;
         levelStateRef.current = gameData.levelState;
@@ -598,6 +510,8 @@ export const PlatformerGame: React.FC = () => {
           sfx.terminalUnlock(volume);
         }
 
+        setGameCompleted(gameData.levelState.levelCompleted);
+        if (gameData.levelState.currentLevel === 0 && oldLevel !== 0) setScore(0);
         if (gameData.levelState.currentLevel !== oldLevel) {
           resetPlayerPositions(gameData.levelState.currentLevel);
         }
@@ -615,7 +529,7 @@ export const PlatformerGame: React.FC = () => {
         };
       }
     }
-  }, [gameData, isHost, volume]);
+  }, [gameData, isHost, volume, resetPlayerPositions]);
 
   // Handle one-off game events
   useEffect(() => {
@@ -638,14 +552,14 @@ export const PlatformerGame: React.FC = () => {
     }
 
     resetGameEvent();
-  }, [gameEvent, isHost, resetGameEvent, volume]);
+  }, [gameEvent, isHost, resetGameEvent, volume, resetPlayerPositions, sendGameEvent]);
 
   const advanceToNextLevel = useCallback(() => {
     if (!isHost) return;
 
     sfx.levelWin(volume);
-    const nextIdx = levelStateRef.current.currentLevel + 1;
-    if (nextIdx < LEVELS.length) {
+    const nextIdx = getNextLevelIndex(levelStateRef.current.currentLevel);
+    if (nextIdx !== null) {
       levelStateRef.current.currentLevel = nextIdx;
       levelStateRef.current.doorUnlocked = false;
       levelStateRef.current.gateOpen = false;
@@ -668,7 +582,7 @@ export const PlatformerGame: React.FC = () => {
         origin: { y: 0.6 }
       });
     }
-  }, [isHost, sendGameData, sendGameEvent, volume]);
+  }, [isHost, sendGameData, sendGameEvent, volume, resetPlayerPositions]);
 
   // Main game physics and loop
   useEffect(() => {
@@ -735,39 +649,7 @@ export const PlatformerGame: React.FC = () => {
     };
 
     const checkTileCollisions = (p: PlayerState, map: number[][], dir: 'x' | 'y') => {
-      const EPS = 0.05;
-      const left = Math.floor((p.x + EPS) / TILE_SIZE);
-      const right = Math.floor((p.x + p.width - EPS) / TILE_SIZE);
-      const top = Math.floor((p.y + EPS) / TILE_SIZE);
-      const bottom = Math.floor((p.y + p.height - EPS) / TILE_SIZE);
-
-      for (let r = top; r <= bottom; r++) {
-        for (let c = left; c <= right; c++) {
-          if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-            const tile = map[r][c];
-
-            // Collide with solid blocks, or closed gates
-            if (tile === TILE_SOLID || (tile === TILE_GATE && !levelStateRef.current.gateOpen)) {
-              if (dir === 'x') {
-                if (p.vx > 0) {
-                  p.x = c * TILE_SIZE - p.width;
-                } else if (p.vx < 0) {
-                  p.x = (c + 1) * TILE_SIZE;
-                }
-              } else {
-                if (p.vy > 0) {
-                  p.y = r * TILE_SIZE - p.height;
-                  p.vy = 0;
-                  p.isJumping = false;
-                } else if (p.vy < 0) {
-                  p.y = (r + 1) * TILE_SIZE;
-                  p.vy = 0;
-                }
-              }
-            }
-          }
-        }
-      }
+      resolveTileCollisions(p, map, dir, levelStateRef.current.gateOpen);
     };
 
     // Physics Engine
@@ -786,7 +668,7 @@ export const PlatformerGame: React.FC = () => {
       rPlayer.animFrame = target.animFrame;
 
       const levelIdx = levelStateRef.current.currentLevel;
-      const map = LEVELS[levelIdx] || LEVELS[0];
+      const map = (LEVELS[levelIdx] || LEVELS[0]).map;
 
       // Gamepad handling
       let gpLeft = false;
@@ -1038,7 +920,7 @@ export const PlatformerGame: React.FC = () => {
       ctx.imageSmoothingEnabled = false;
 
       const levelIdx = levelStateRef.current.currentLevel;
-      const map = LEVELS[levelIdx] || LEVELS[0];
+      const map = (LEVELS[levelIdx] || LEVELS[0]).map;
       const gateOpen = levelStateRef.current.gateOpen;
       const doorUnlocked = levelStateRef.current.doorUnlocked;
 
@@ -1394,17 +1276,15 @@ export const PlatformerGame: React.FC = () => {
 
   return (
     <div className={`game-main-content ${isFullscreen ? 'fullscreen-mode' : ''}`} ref={containerRef}>
-      <div className="game-header-bar glass-panel" style={{ width: '100%', maxWidth: '900px' }}>
+      <div className="game-header-bar glass-panel" style={{ width: '100%', maxWidth: '900px', flexWrap: 'wrap', gap: '0.75rem' }}>
         <h2 className="game-title-text font-display">
-          LEVEL {currentLevel + 1}: <span className="text-cyan">
-            {currentLevel === 0 && "PILOT"}
-            {currentLevel === 1 && "DON'T WORRY!"}
-            {currentLevel === 2 && "DOOMED?"}
+          LEVEL {currentLevel + 1} / {LEVELS.length}: <span className="text-cyan">
+            {LEVELS[currentLevel].name}
           </span>
         </h2>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
           <div className="peer-badge" style={{ borderColor: doorUnlockedState ? 'var(--neon-green)' : 'var(--neon-yellow)', color: doorUnlockedState ? 'var(--neon-green)' : 'var(--neon-yellow)' }}>
-            {doorUnlockedState ? '🚪 Portal Active!' : '🔒 Portal Locked (Find Key)'}
+            {doorUnlockedState ? '🚪 Portal Active!' : '🔒 Activate the Terminal'}
           </div>
 
           {/* Volume Control */}
@@ -1466,6 +1346,10 @@ export const PlatformerGame: React.FC = () => {
         </div>
       </div>
 
+      <p style={{ width: '100%', maxWidth: '900px', color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+        {LEVELS[currentLevel].hint}
+      </p>
+
       <div className="canvas-container">
         <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
 
@@ -1473,7 +1357,7 @@ export const PlatformerGame: React.FC = () => {
         {gameCompleted && (
           <div className="canvas-overlay">
             <h2 className="overlay-title font-display text-cyan" style={{ fontSize: '3rem', letterSpacing: '2px' }}>VICTORY!</h2>
-            <p style={{ color: 'var(--neon-green)', fontWeight: 700, fontSize: '1.2rem' }}>All levels cleared successfully!</p>
+            <p style={{ color: 'var(--neon-green)', fontWeight: 700, fontSize: '1.2rem' }}>All {LEVELS.length} levels cleared together!</p>
             <p style={{ color: 'var(--text-secondary)', marginTop: '-0.5rem' }}>Final Score: {score + 500} pts (Cooperative Bonus Included)</p>
 
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>

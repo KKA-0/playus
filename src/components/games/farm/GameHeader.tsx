@@ -21,11 +21,11 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   gamepadConnected,
 }) => {
   return (
-    <div className="game-header-bar glass-panel" style={{ width: '100%', maxWidth: '900px' }}>
+    <div className="game-header-bar glass-panel" style={{ width: '100%', maxWidth: '900px', flexWrap: 'wrap' }}>
       <h2 className="game-title-text font-display">
-        FARM TOGETHER: <span className="text-yellow">CO-OP SANDBOX</span>
+        FARM TOGETHER: <span className="text-yellow">HARVEST & HOME</span>
       </h2>
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginLeft: 'auto' }}>
+      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
 
         {gamepadConnected && (
           <div className="peer-badge" style={{ borderColor: 'var(--neon-green)', color: 'var(--neon-green)', gap: '0.4rem', animation: 'pulse 1.5s infinite alternate', display: 'flex', alignItems: 'center' }}>
@@ -39,6 +39,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
           {volume === 0 ? <VolumeX size={14} className="text-muted" /> : <Volume2 size={14} style={{ color: 'var(--neon-yellow)' }} />}
           <input
             type="range"
+            aria-label="Farm music volume"
             min="0"
             max="1"
             step="0.05"

@@ -233,12 +233,16 @@ const AppContent: React.FC = () => {
                       <span className="control-key">WASD / Arrows</span>
                     </li>
                     <li className="control-item">
-                      <span className="control-label">Farm Plot</span>
-                      <span className="text-yellow">🌱 Spawn center</span>
+                      <span className="control-label">Select / Use item</span>
+                      <span className="control-key">1–6 / Space</span>
                     </li>
                     <li className="control-item">
-                      <span className="control-label">Gender Select</span>
-                      <span className="text-green">Male / Female</span>
+                      <span className="control-label">Harvest / Interact</span>
+                      <span className="control-key">E</span>
+                    </li>
+                    <li className="control-item">
+                      <span className="control-label">Orders / Market</span>
+                      <span className="control-key">B</span>
                     </li>
                   </ul>
                 )}
