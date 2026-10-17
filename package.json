@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test:chained": "node --test tests/chained-levels.test.mjs",
     "test:gate-it": "node --test tests/gate-it-levels.test.mjs",
-    "test:farm": "node --test tests/farm-gameplay.test.mjs",
+    "test:farm": "node --test tests/farm-gameplay.test.mjs tests/farm-controls.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -37,7 +37,7 @@ export function FarmBoard({ progress, inventory, chest, notice, onAction, onClos
   }, []);
 
   return <div className="farm-board-shade">
-    <div className="farm-board" role="dialog" aria-modal="true" aria-labelledby="farm-board-title" ref={dialogRef}>
+    <div className="farm-board" data-farm-menu="board" role="dialog" aria-modal="true" aria-labelledby="farm-board-title" ref={dialogRef}>
       <header className="farm-board-heading">
         <div><small>GROW SOMETHING GOOD, TOGETHER</small><h2 id="farm-board-title">🌻 The farm board</h2></div>
         <button onClick={onClose} aria-label="Close farm board">✕</button>
@@ -47,7 +47,7 @@ export function FarmBoard({ progress, inventory, chest, notice, onAction, onClos
       </div>
       <div className="farm-xp-track"><div style={{ width: `${level.next ? Math.min(100, (progress.xp - level.start) / (level.next - level.start) * 100) : 100}%` }} /></div>
       <nav className="farm-board-tabs" aria-label="Farm board sections">
-        {(['orders', 'market', 'upgrades'] as const).map(value => <button key={value} aria-pressed={tab === value} onClick={() => setTab(value)}>{value === 'orders' ? '📋 Orders' : value === 'market' ? '🧺 Market' : '🛠 Upgrades'}</button>)}
+        {(['orders', 'market', 'upgrades'] as const).map(value => <button key={value} data-farm-tab={value} aria-pressed={tab === value} onClick={() => setTab(value)}>{value === 'orders' ? '📋 Orders' : value === 'market' ? '🧺 Market' : '🛠 Upgrades'}</button>)}
       </nav>
       <div className="farm-board-body">
         {tab === 'orders' && <>
@@ -61,8 +61,8 @@ export function FarmBoard({ progress, inventory, chest, notice, onAction, onClos
             <div className="farm-order-reward"><span>Reward: <b>🪙 {order.coins} + ✨ {order.xp} XP</b></span><button className="farm-primary" disabled={!canContribute} onClick={() => onAction({ type: 'deliver', order: progress.ordersCompleted })}>Contribute items</button></div>
           </article>
           <div className="farm-guide-grid">
-            <article><h4>🌱 Grow & trade</h4><p>Select seeds with 1–6, then Space on the field. Water at both growth stages. E harvests. Sell extras to fund your next crop.</p></article>
-            <article><h4>🐔 Happy hens</h4><p>The coop is northeast of the field. Press E to feed one carrot seed, then collect eggs after 25 seconds. Upgrade it for more eggs, faster.</p></article>
+            <article><h4>🌱 Grow & trade</h4><p>Choose a seed slot, then Plant/Water (Space or A / ✕) on the field. Water at both growth stages. Interact (E or X / □) harvests.</p></article>
+            <article><h4>🐔 Happy hens</h4><p>Interact with the coop northeast of the field to feed one carrot seed, then collect eggs after 25 seconds. Upgrade it for more eggs, faster.</p></article>
             <article><h4>🌧 A helping hand</h4><p>Showers arrive every two minutes and water your crops. Clear weeds for coins. Gather wood and stone to build shared upgrades.</p></article>
             <article><h4>🤝 Your homestead</h4><p>{progress.harvests} crops harvested · {progress.ordersCompleted} orders filled. Share supplies in the house chest. Progress lasts for this game session.</p></article>
           </div>
@@ -87,7 +87,7 @@ export function FarmBoard({ progress, inventory, chest, notice, onAction, onClos
           })}</div>
         </>}
       </div>
-      <footer className="farm-board-footer"><span role="status">{notice || 'A little teamwork goes a long way.'}</span><small>B / Esc to close · The farm keeps growing while you browse.</small></footer>
+      <footer className="farm-board-footer"><span role="status">{notice || 'A little teamwork goes a long way.'}</span><small>Controller: D-pad browse · A / ✕ select · B / ○ back · LB/RB tabs. Keyboard: B / Esc closes.</small></footer>
     </div>
   </div>;
 }

@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface CharacterSelectionProps {
   localGender: 'male' | 'female' | null;
   remoteGender: 'male' | 'female' | null;
@@ -7,59 +5,18 @@ interface CharacterSelectionProps {
   onSelectGender: (gender: 'male' | 'female') => void;
 }
 
-export const CharacterSelection: React.FC<CharacterSelectionProps> = ({
-  localGender,
-  remoteGender,
-  isConnected,
-  onSelectGender,
-}) => {
-  return (
-    <div className="canvas-overlay">
-      <h2 className="overlay-title font-display text-yellow" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>
-        WHO WILL PLAY?
-      </h2>
-      <p style={{ color: 'var(--text-secondary)', marginTop: 0 }}>Grow crops, raise happy hens, and build your shared homestead.</p>
-
-      <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
-        {/* Male option card */}
-        <div
-          className={`game-option-card farm ${localGender === 'male' ? 'selected' : ''}`}
-          onClick={() => onSelectGender('male')}
-          style={{ width: '180px', padding: '1rem', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-        >
-          <div style={{ width: '80px', height: '80px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            <img src="/male.png" alt="Male Farmer" style={{ width: '60px', height: '60px', imageRendering: 'pixelated' }} />
-          </div>
-          <h3 className="font-display" style={{ fontSize: '1rem', margin: '0.75rem 0 0.25rem 0', color: 'var(--text-primary)' }}>MALE</h3>
-          <span style={{ fontSize: '0.75rem', color: 'var(--neon-cyan)' }}>Ready for the harvest</span>
-        </div>
-
-        {/* Female option card */}
-        <div
-          className={`game-option-card farm ${localGender === 'female' ? 'selected' : ''}`}
-          onClick={() => onSelectGender('female')}
-          style={{ width: '180px', padding: '1rem', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-        >
-          <div style={{ width: '80px', height: '80px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            <img src="/female.png" alt="Female Farmer" style={{ width: '60px', height: '60px', imageRendering: 'pixelated' }} />
-          </div>
-          <h3 className="font-display" style={{ fontSize: '1rem', margin: '0.75rem 0 0.25rem 0', color: 'var(--text-primary)' }}>FEMALE</h3>
-          <span style={{ fontSize: '0.75rem', color: 'var(--neon-magenta)' }}>Ready for the harvest</span>
-        </div>
-      </div>
-
-      {/* Selection status messages */}
-      <p style={{ fontSize: '0.8rem', color: '#d8dfab', margin: '1rem 0 0' }}>Start with 8 seeds · Open the farm board with B · Progress lasts for this session</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
-        <div style={{ color: localGender ? 'var(--neon-green)' : 'var(--text-secondary)' }}>
-          You: {localGender ? `Selected ${localGender.toUpperCase()}` : 'Choosing...'}
-        </div>
-        {isConnected && (
-          <div style={{ color: remoteGender ? 'var(--neon-green)' : 'var(--text-secondary)' }}>
-            Partner: {remoteGender ? `Selected ${remoteGender.toUpperCase()}` : 'Choosing...'}
-          </div>
-        )}
-      </div>
+export function CharacterSelection({ localGender, remoteGender, isConnected, onSelectGender }: CharacterSelectionProps) {
+  return <div className="canvas-overlay farm-character-select" data-farm-menu="characters" role="dialog" aria-label="Choose your farmer">
+    <h2 className="overlay-title font-display text-yellow">WHO WILL PLAY?</h2>
+    <p>Grow crops, raise happy hens, and build your shared homestead.</p>
+    <div className="farm-character-options">
+      {(['male', 'female'] as const).map(gender => <button key={gender} className={`game-option-card farm ${localGender === gender ? 'selected' : ''}`} aria-pressed={localGender === gender} onClick={() => onSelectGender(gender)}>
+        <img src={`/${gender}.png`} alt="" />
+        <strong>{gender === 'male' ? 'Male farmer' : 'Female farmer'}</strong>
+        <small>{localGender === gender ? '✓ Ready to grow' : 'Ready for the harvest'}</small>
+      </button>)}
     </div>
-  );
-};
+    <p className="farm-character-status">You: {localGender ? `${localGender} selected` : 'choosing…'}{isConnected && <><br />Partner: {remoteGender ? `${remoteGender} selected` : 'choosing…'}</>}</p>
+    <small>Tap a farmer, or use stick / D-pad + A / ✕.<br />8 starter seeds · Shared goals · Session-only progress</small>
+  </div>;
+}

@@ -24,7 +24,7 @@ export function drawFarmStations(ctx: CanvasRenderingContext2D, farm: FarmProgre
   for (let i = 0; i < 4; i++) box(mx - 30 + i * 19, my - 21, 2, 13, '#a77842');
   ctx.font = '17px sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('🥕 🍅 🌽', mx, my - 22);
-  label('MARKET · E / B', mx, my + 17);
+  label('VILLAGE MARKET', mx, my + 17);
 
   const cx = COOP.x;
   const cy = COOP.y;
@@ -37,7 +37,7 @@ export function drawFarmStations(ctx: CanvasRenderingContext2D, farm: FarmProgre
   box(cx - 16, cy - 4, 32, 6, '#d9bc82');
   box(cx + 20, cy - 34, 10, 12, '#fff2bc');
   ctx.font = '18px sans-serif'; ctx.fillText(farm.eggs ? '🥚' : farm.coopSeconds > 0 ? '♥' : '🌱', cx - 25, cy - 10);
-  const status = farm.eggs ? `${farm.eggs} EGGS READY · E` : farm.coopSeconds > 0 ? `NESTING · ${Math.ceil(farm.coopSeconds)}s` : 'FEED HENS · E';
+  const status = farm.eggs ? `${farm.eggs} EGGS READY` : farm.coopSeconds > 0 ? `NESTING · ${Math.ceil(farm.coopSeconds)}s` : 'FEED HENS';
   label(status, cx, cy + 22, farm.eggs ? '#ffee82' : '#fff2c4');
 
   if (farm.upgrades.sprinkler) {

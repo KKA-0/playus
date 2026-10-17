@@ -24,7 +24,7 @@ export const ChestOverlay: React.FC<ChestOverlayProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="chest-overlay glass-panel" role="dialog" aria-label="Shared farm chest" style={{
+    <div className="chest-overlay glass-panel" data-farm-menu="chest" role="dialog" aria-modal="true" aria-label="Shared farm chest" style={{
       position: 'absolute',
       top: '50%',
       left: '50%',
@@ -73,8 +73,10 @@ export const ChestOverlay: React.FC<ChestOverlayProps> = ({
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
           {chestItems.map((item, idx) => (
-            <div
+            <button
               key={`chest-${idx}`}
+              disabled={!item}
+              aria-label={item ? `Take ${item.count} ${getItemName(item.type)} from chest slot ${idx + 1}` : `Chest slot ${idx + 1}: empty`}
               onClick={() => onTransferToPlayer(idx)}
               style={{
                 width: '100%',
@@ -128,7 +130,7 @@ export const ChestOverlay: React.FC<ChestOverlayProps> = ({
                   {getItemName(item.type)}
                 </span>
               )}
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -140,8 +142,10 @@ export const ChestOverlay: React.FC<ChestOverlayProps> = ({
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
           {playerInventory.map((item, idx) => (
-            <div
+            <button
               key={`player-${idx}`}
+              disabled={!item}
+              aria-label={item ? `Store ${item.count} ${getItemName(item.type)} from backpack slot ${idx + 1}` : `Backpack slot ${idx + 1}: empty`}
               onClick={() => onTransferToChest(idx)}
               style={{
                 width: '100%',
@@ -195,7 +199,7 @@ export const ChestOverlay: React.FC<ChestOverlayProps> = ({
                   {getItemName(item.type)}
                 </span>
               )}
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -203,7 +207,7 @@ export const ChestOverlay: React.FC<ChestOverlayProps> = ({
       {/* Bottom hint */}
       <p role="status" style={{ fontSize: '0.7rem', color: '#ddd5a5' }}>{notice}</p>
       <div style={{ marginTop: '1.2rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.6rem' }}>
-        Click items to transfer them. Press [E] or Close to return.
+        Tap an item to transfer. Controller: D-pad + A / ✕. B / ○ closes. Keyboard: E / Esc closes.
       </div>
     </div>
   );

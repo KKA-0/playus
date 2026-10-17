@@ -10,6 +10,11 @@ import { FarmBoard } from './farm/FarmBoard';
 import { COOP, MARKET, applyFarmAction, createFarmProgress, createStarterInventory, getFarmLevel, getOrder, getWeather, isSeed, near, processFarmRequests, tickFarm } from './farm/gameplay';
 import type { FarmAction, FarmRequest, FarmWorld } from './farm/gameplay';
 import { drawFarmStations } from './farm/drawStations';
+import { TouchControls } from './farm/TouchControls';
+import { useFarmController } from './farm/useFarmController';
+import { cycleInventory } from './farm/controls';
+import type { MoveVector } from './farm/controls';
+import { FarmMenu } from './farm/FarmMenu';
 
 export const FarmGame: React.FC = () => {
   const {
@@ -24,9 +29,32 @@ export const FarmGame: React.FC = () => {
   } = usePeer();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const touchMoveRef = useRef<MoveVector>({ x: 0, y: 0 });
+  const controllerMoveRef = useRef<MoveVector>({ x: 0, y: 0 });
 
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isImmersive, setIsImmersive] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isMenuOpenRef = useRef(false);
+  useEffect(() => { isMenuOpenRef.current = isMenuOpen; }, [isMenuOpen]);
+  const [touchPreference, setTouchPreference] = useState<boolean | null>(null);
+  const [autoTouch, setAutoTouch] = useState(() => window.matchMedia('(pointer: coarse), (max-width: 700px)').matches || navigator.maxTouchPoints > 0);
+  const touchEnabled = touchPreference ?? autoTouch;
+  useEffect(() => {
+    const query = window.matchMedia('(pointer: coarse), (max-width: 700px)');
+    const update = () => setAutoTouch(query.matches || navigator.maxTouchPoints > 0);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    if (!isImmersive) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [isImmersive]);
 
   // Character selection states
   const [localGender, setLocalGender] = useState<'male' | 'female' | null>(null);
@@ -53,26 +81,6 @@ export const FarmGame: React.FC = () => {
   useEffect(() => {
     selectedSlotRef.current = selectedSlot;
   }, [selectedSlot]);
-
-  const [gamepadConnected, setGamepadConnected] = useState(() => Array.from(navigator.getGamepads?.() ?? []).some(g => g !== null));
-  const prevGamepadButtonsRef = useRef<boolean[]>([]);
-
-  useEffect(() => {
-    const handleConnect = () => setGamepadConnected(true);
-    const handleDisconnect = () => {
-      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const hasActive = Array.from(gamepads).some(g => g !== null);
-      setGamepadConnected(hasActive);
-    };
-
-    window.addEventListener('gamepadconnected', handleConnect);
-    window.addEventListener('gamepaddisconnected', handleDisconnect);
-
-    return () => {
-      window.removeEventListener('gamepadconnected', handleConnect);
-      window.removeEventListener('gamepaddisconnected', handleDisconnect);
-    };
-  }, []);
 
   // Audio state
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -148,16 +156,14 @@ export const FarmGame: React.FC = () => {
   }, []);
 
   const toggleFullscreen = () => {
-    const container = canvasRef.current?.parentElement;
+    const container = surfaceRef.current;
     if (!container) return;
-
-    if (!document.fullscreenElement) {
-      container.requestFullscreen().catch((err) => {
-        console.error('Error attempting to enable fullscreen:', err);
-      });
-    } else {
-      document.exitFullscreen();
-    }
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else if (isImmersive) setIsImmersive(false);
+    // Keep mobile expansion within the page, including browsers without element fullscreen.
+    else if (touchEnabled) setIsImmersive(true);
+    else if (container.requestFullscreen) void container.requestFullscreen().catch(() => setIsImmersive(true));
+    else setIsImmersive(true);
   };
 
   // Asset preloading status
@@ -187,8 +193,10 @@ export const FarmGame: React.FC = () => {
   const closeFarmBoard = () => {
     setIsBoardOpen(false);
     keysRef.current = {};
+    touchMoveRef.current = { x: 0, y: 0 };
     canvasRef.current?.focus({ preventScroll: true });
   };
+  const selectSlot = (slot: number) => { selectedSlotRef.current = slot; setSelectedSlot(slot); };
 
   // Entity states
   const localPlayerRef = useRef<PlayerState>({
@@ -319,6 +327,22 @@ export const FarmGame: React.FC = () => {
 
   // Proximity indicator refs for keyboard event listeners
   const isNearChestRef = useRef<boolean>(false);
+  const clearMovement = () => {
+    keysRef.current = {};
+    touchMoveRef.current = { x: 0, y: 0 };
+    controllerMoveRef.current = { x: 0, y: 0 };
+  };
+  const closePanels = () => {
+    setIsMenuOpen(false); setIsChestOpen(false); setIsBoardOpen(false);
+    clearMovement(); canvasRef.current?.focus({ preventScroll: true });
+  };
+  const openBoard = () => {
+    if (!selectionComplete) return;
+    setIsMenuOpen(false); setIsChestOpen(false); setIsBoardOpen(true); clearMovement();
+  };
+  const toggleFarmMenu = () => {
+    setIsMenuOpen(open => !open); setIsChestOpen(false); setIsBoardOpen(false); clearMovement();
+  };
 
   const smokeParticlesRef = useRef<SmokeParticle[]>([]);
   const fireParticlesRef = useRef<SmokeParticle[]>([]);
@@ -452,6 +476,9 @@ export const FarmGame: React.FC = () => {
           width: entry.contentRect.width || canvas.clientWidth || 800,
           height: entry.contentRect.height || canvas.clientHeight || 480
         };
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(canvasRectRef.current.width * pixelRatio);
+        canvas.height = Math.round(canvasRectRef.current.height * pixelRatio);
       }
     });
 
@@ -694,7 +721,7 @@ export const FarmGame: React.FC = () => {
   };
 
   const triggerInteract = () => {
-    if (!selectionComplete || isBoardOpenRef.current) return;
+    if (!selectionComplete || isBoardOpenRef.current || isMenuOpenRef.current) return;
     if (isNearChestRef.current) {
       setIsChestOpen((prev) => !prev);
       return;
@@ -706,7 +733,7 @@ export const FarmGame: React.FC = () => {
 
     const p = localPlayerRef.current;
     if (!p.inHouse) {
-      if (near(p, MARKET, 60)) { setIsBoardOpen(true); return; }
+      if (near(p, MARKET, 60)) { openBoard(); return; }
       if (near(p, COOP, 60)) { performGameAction({ type: 'coop' }); return; }
       // 1. Check crop harvesting
       let closestCropIdx = -1;
@@ -762,7 +789,7 @@ export const FarmGame: React.FC = () => {
   };
 
   const triggerUseHeldItem = () => {
-    if (!selectionComplete || isChestOpenRef.current || isBoardOpenRef.current) return;
+    if (!selectionComplete || isChestOpenRef.current || isBoardOpenRef.current || isMenuOpenRef.current) return;
 
     const p = localPlayerRef.current;
     if (!p.inHouse) {
@@ -789,22 +816,26 @@ export const FarmGame: React.FC = () => {
     }
   };
 
-  const interactFromEffect = useEffectEvent(triggerInteract);
-  const activateItemFromEffect = useEffectEvent(triggerUseHeldItem);
+  const gamepadConnected = useFarmController({
+    root: rootRef, enabled: assetsLoaded,
+    onMove: value => { controllerMoveRef.current = value; },
+    onUse: triggerUseHeldItem, onInteract: triggerInteract,
+    onCycle: direction => selectSlot(cycleInventory(selectedSlotRef.current, direction, localPlayerRef.current.inventory.length)),
+    onBoard: openBoard, onBack: closePanels, onMenu: toggleFarmMenu,
+  });
   const sendSnapshot = useEffectEvent(sendGameData);
   const handleShortcut = useEffectEvent((e: KeyboardEvent) => {
-    if (!selectionComplete || e.repeat) return;
+    if (e.repeat) return;
     const key = e.key.toLowerCase();
-    if (key === 'b' || key === 'escape') {
-      setIsChestOpen(false);
-      setIsBoardOpen(key === 'b' ? !isBoardOpen : false);
-      keysRef.current = {};
-      if (key === 'escape' || isBoardOpen) canvasRef.current?.focus({ preventScroll: true });
+    if (key === 'escape') {
+      if (isBoardOpen || isChestOpen || isMenuOpen) closePanels(); else toggleFarmMenu();
       return;
     }
-    if (isBoardOpen) return;
+    if (!selectionComplete) return;
+    if (key === 'b') { if (isBoardOpen) closePanels(); else openBoard(); return; }
+    if (isBoardOpen || isMenuOpen) return;
     const slot = Number(e.key) - 1;
-    if (Number.isInteger(slot) && slot >= 0 && slot < localPlayerRef.current.inventory.length) setSelectedSlot(slot);
+    if (Number.isInteger(slot) && slot >= 0 && slot < localPlayerRef.current.inventory.length) selectSlot(slot);
     if (key === 'e') triggerInteract();
     if (e.key === ' ' && (e.target as HTMLElement)?.tagName !== 'BUTTON') triggerUseHeldItem();
   });
@@ -824,7 +855,7 @@ export const FarmGame: React.FC = () => {
       }
 
       const keyLower = e.key.toLowerCase();
-      if (!isBoardOpenRef.current && activeEl?.tagName !== 'BUTTON' && ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'w', 'a', 's', 'd'].includes(keyLower)) {
+      if (!isBoardOpenRef.current && !isMenuOpenRef.current && activeEl?.tagName !== 'BUTTON' && ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'w', 'a', 's', 'd'].includes(keyLower)) {
         e.preventDefault();
       }
 
@@ -844,16 +875,20 @@ export const FarmGame: React.FC = () => {
 
     const handleBlur = () => {
       keysRef.current = {};
+      touchMoveRef.current = { x: 0, y: 0 };
+      controllerMoveRef.current = { x: 0, y: 0 };
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleBlur);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleBlur);
     };
   }, []);
 
@@ -931,6 +966,8 @@ export const FarmGame: React.FC = () => {
     setSelectedSlot(0);
     setIsBoardOpen(false);
     setIsChestOpen(false);
+    setIsMenuOpen(false);
+    touchMoveRef.current = { x: 0, y: 0 };
     keysRef.current = {};
     localPlayerRef.current = {
       x: isHost ? 480 : 520,
@@ -1039,53 +1076,6 @@ export const FarmGame: React.FC = () => {
     let syncTicks = 0;
     const updatePhysics = () => {
       const p = localPlayerRef.current;
-
-      // Poll gamepad buttons
-      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-      const gp = Array.from(gamepads).find((g) => g !== null);
-
-      if (gp) {
-        const isButtonPressed = (btnIndex: number) => {
-          return gp.buttons[btnIndex] ? gp.buttons[btnIndex].pressed : false;
-        };
-        const wasButtonPressed = (btnIndex: number) => {
-          return prevGamepadButtonsRef.current[btnIndex] || false;
-        };
-        const isButtonJustPressed = (btnIndex: number) => {
-          return isButtonPressed(btnIndex) && !wasButtonPressed(btnIndex);
-        };
-
-        // LB (4) -> Cycle inventory backward
-        if (isButtonJustPressed(4)) {
-          setSelectedSlot((curr) => (curr - 1 + p.inventory.length) % p.inventory.length);
-        }
-        // RB (5) -> Cycle inventory forward
-        if (isButtonJustPressed(5)) {
-          setSelectedSlot((curr) => (curr + 1) % p.inventory.length);
-        }
-
-        // Button A (0) -> Use held item (Space)
-        if (isButtonJustPressed(0)) {
-          activateItemFromEffect();
-        }
-
-        // Button X (2) -> Interact (E)
-        if (isButtonJustPressed(2)) {
-          interactFromEffect();
-        }
-
-        // Button B (1) -> Close chest
-        if (isButtonJustPressed(1)) {
-          setIsChestOpen(false);
-          setIsBoardOpen(false);
-          canvasRef.current?.focus({ preventScroll: true });
-        }
-        if (isButtonJustPressed(3)) { setIsChestOpen(false); setIsBoardOpen(open => !open); }
-
-        prevGamepadButtonsRef.current = gp.buttons.map((b) => b.pressed);
-      } else {
-        prevGamepadButtonsRef.current = [];
-      }
 
       // Proximity check for chest
       const distToChest = Math.hypot(p.x - 550, p.y - 120);
@@ -1203,37 +1193,18 @@ export const FarmGame: React.FC = () => {
         });
       }
 
-      if (isChestOpenRef.current || isBoardOpenRef.current) {
+      if (isChestOpenRef.current || isBoardOpenRef.current || isMenuOpenRef.current) {
         p.isMoving = false;
       } else {
         let dx = 0;
         let dy = 0;
 
-        let gpDx = 0;
-        let gpDy = 0;
-        if (gp) {
-          const deadzone = 0.2;
-          const axisX = gp.axes[0] || 0;
-          const axisY = gp.axes[1] || 0;
-
-          if (Math.abs(axisX) > deadzone) gpDx = axisX;
-          if (Math.abs(axisY) > deadzone) gpDy = axisY;
-
-          if (gp.buttons[14] && gp.buttons[14].pressed) gpDx = -1;
-          if (gp.buttons[15] && gp.buttons[15].pressed) gpDx = 1;
-          if (gp.buttons[12] && gp.buttons[12].pressed) gpDy = -1;
-          if (gp.buttons[13] && gp.buttons[13].pressed) gpDy = 1;
-
-          const mag = Math.sqrt(gpDx * gpDx + gpDy * gpDy);
-          if (mag > 1) {
-            gpDx /= mag;
-            gpDy /= mag;
-          }
-        }
-
-        if (gpDx !== 0 || gpDy !== 0) {
-          dx = gpDx;
-          dy = gpDy;
+        const touch = touchMoveRef.current;
+        const controller = controllerMoveRef.current;
+        if (touch.x || touch.y) {
+          dx = touch.x; dy = touch.y;
+        } else if (controller.x || controller.y) {
+          dx = controller.x; dy = controller.y;
         } else {
           if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) dx = -1;
           if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) dx = 1;
@@ -1430,9 +1401,17 @@ export const FarmGame: React.FC = () => {
 
       const currentWidth = canvas.width;
       const currentHeight = canvas.height;
-      const scale = Math.min(currentWidth / CANVAS_WIDTH, currentHeight / CANVAS_HEIGHT);
-      const offsetX = (currentWidth - CANVAS_WIDTH * scale) / 2;
-      const offsetY = (currentHeight - CANVAS_HEIGHT * scale) / 2;
+      const p1 = localPlayerRef.current;
+      const p2 = remotePlayerRef.current;
+      // Outdoors fills the available screen. Portrait phones see a closer, taller
+      // slice of the farm instead of a tiny landscape image between black bars.
+      const scale = p1.inHouse
+        ? Math.min(currentWidth / CANVAS_WIDTH, currentHeight / CANVAS_HEIGHT)
+        : Math.max(currentWidth / MAP_WIDTH, currentHeight / MAP_HEIGHT, Math.min(currentWidth / 480, currentHeight / 480));
+      const viewWidth = p1.inHouse ? CANVAS_WIDTH : currentWidth / scale;
+      const viewHeight = p1.inHouse ? CANVAS_HEIGHT : currentHeight / scale;
+      const offsetX = (currentWidth - viewWidth * scale) / 2;
+      const offsetY = (currentHeight - viewHeight * scale) / 2;
 
       // Black background for letterbox borders
       ctx.fillStyle = '#000';
@@ -1441,9 +1420,6 @@ export const FarmGame: React.FC = () => {
       ctx.save();
       ctx.translate(offsetX, offsetY);
       ctx.scale(scale, scale);
-
-      const p1 = localPlayerRef.current;
-      const p2 = remotePlayerRef.current;
 
       const drawChest = (cCtx: CanvasRenderingContext2D, cx: number, cy: number) => {
         const width = 36;
@@ -1654,7 +1630,7 @@ export const FarmGame: React.FC = () => {
 
         // Chest Tooltip Proximity Check
         if (isNearChestRef.current) {
-          drawTooltip(ctx, 'CHEST', 'Press [E] to Open', 550, 120 - 15);
+          drawTooltip(ctx, 'CHEST', 'Interact to open', 550, 120 - 15);
         }
 
         // 6. Night shade inside the house (no campfire glow)
@@ -1665,15 +1641,15 @@ export const FarmGame: React.FC = () => {
         }
       } else {
         // --- DRAW OUTDOOR FARM ---
-        // Camera settings (follow midpoint of players, clamp to map bounds)
-        const midX = (p1.x + p2.x) / 2;
-        const midY = (p1.y + p2.y) / 2;
+        // Each farmer keeps their own character in view, even when exploring apart.
+        const midX = p1.x;
+        const midY = p1.y;
 
-        let cameraX = midX - CANVAS_WIDTH / 2;
-        let cameraY = midY - CANVAS_HEIGHT / 2;
+        let cameraX = midX - viewWidth / 2;
+        let cameraY = midY - viewHeight / 2;
 
-        cameraX = Math.max(0, Math.min(MAP_WIDTH - CANVAS_WIDTH, cameraX));
-        cameraY = Math.max(0, Math.min(MAP_HEIGHT - CANVAS_HEIGHT, cameraY));
+        cameraX = Math.max(0, Math.min(MAP_WIDTH - viewWidth, cameraX));
+        cameraY = Math.max(0, Math.min(MAP_HEIGHT - viewHeight, cameraY));
 
         ctx.save();
         ctx.translate(-cameraX, -cameraY);
@@ -1684,7 +1660,7 @@ export const FarmGame: React.FC = () => {
         } else {
           // Fallback if not cached yet
           ctx.fillStyle = '#2d6a4f';
-          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
         }
 
         // Hide chimney GIF overlay when outdoors
@@ -1866,11 +1842,11 @@ export const FarmGame: React.FC = () => {
         const closestCrop = closestCropIdx !== -1 ? cropsRef.current[closestCropIdx] : null;
 
         if (near(p1, MARKET, 60)) {
-          drawTooltip(ctx, 'VILLAGE MARKET', '[E] Shop, orders & upgrades', MARKET.x, MARKET.y - 80);
+          drawTooltip(ctx, 'VILLAGE MARKET', 'Interact for orders & upgrades', MARKET.x, MARKET.y - 80);
         } else if (near(p1, COOP, 60)) {
-          drawTooltip(ctx, 'CHICKEN COOP', farmRef.current.eggs ? '[E] Collect your eggs' : farmRef.current.coopSeconds > 0 ? 'Happy hens are nesting…' : '[E] Feed 1 carrot seed', COOP.x, COOP.y - 70);
+          drawTooltip(ctx, 'CHICKEN COOP', farmRef.current.eggs ? 'Interact to collect eggs' : farmRef.current.coopSeconds > 0 ? 'Happy hens are nesting…' : 'Interact: feed 1 carrot seed', COOP.x, COOP.y - 70);
         } else if (closestCrop && closestCrop.stage === 2) {
-          drawTooltip(ctx, 'READY CROP', 'Press [E] to Harvest', closestCrop.x, closestCrop.y - 12);
+          drawTooltip(ctx, 'READY CROP', 'Interact to harvest', closestCrop.x, closestCrop.y - 12);
         } else {
           // Check proximity to wild items
           let closestItem: WildItem | null = null;
@@ -1886,7 +1862,7 @@ export const FarmGame: React.FC = () => {
           });
 
           if (closestItem) {
-            drawTooltip(ctx, (closestItem as WildItem).type.toUpperCase(), 'Press [E] to Gather', (closestItem as WildItem).x, (closestItem as WildItem).y - 12);
+            drawTooltip(ctx, (closestItem as WildItem).type.toUpperCase(), 'Interact to gather', (closestItem as WildItem).x, (closestItem as WildItem).y - 12);
           } else {
             // Check weed proximity
             let closestWeed: Weed | null = null;
@@ -1900,16 +1876,16 @@ export const FarmGame: React.FC = () => {
             }
 
             if (closestWeed) {
-              drawTooltip(ctx, 'WILD WEED', 'Press [E] to Clean', closestWeed.x, closestWeed.y - 10);
+              drawTooltip(ctx, 'WILD WEED', 'Interact to clear', closestWeed.x, closestWeed.y - 10);
             } else {
               // Plot tools hints
               const isOnPlot = p1.x >= 350 && p1.x <= 650 && p1.y >= 250 && p1.y <= 450;
               if (isOnPlot) {
                 const heldItem = p1.inventory[selectedSlotRef.current];
                 if (heldItem && isSeed(heldItem.type)) {
-                  drawTooltip(ctx, 'SOIL PLOT', 'Press [Space] to Plant', p1.x, p1.y - 45);
+                  drawTooltip(ctx, 'SOIL PLOT', 'Use seeds to plant', p1.x, p1.y - 45);
                 } else if (heldItem && heldItem.type === 'watering_can' && closestCrop && !closestCrop.watered) {
-                  drawTooltip(ctx, 'DRY CROP', 'Press [Space] to Water', closestCrop.x, closestCrop.y - 12);
+                  drawTooltip(ctx, 'DRY CROP', 'Use watering can', closestCrop.x, closestCrop.y - 12);
                 }
               }
             }
@@ -1962,17 +1938,19 @@ export const FarmGame: React.FC = () => {
 
         ctx.restore(); // Restores camera translate
         if (getWeather(elapsedTimeRef.current) === 'rain') {
-          ctx.fillStyle = '#294f711a'; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.fillStyle = '#294f711a'; ctx.fillRect(0, 0, viewWidth, viewHeight);
           ctx.strokeStyle = '#d1eef180'; ctx.lineWidth = 1;
           for (let i = 0; i < 70; i++) {
-            const x = (i * 137 + elapsedTimeRef.current * 50) % CANVAS_WIDTH;
-            const y = (i * 89 + elapsedTimeRef.current * 270) % CANVAS_HEIGHT;
+            const x = (i * 137 + elapsedTimeRef.current * 50) % viewWidth;
+            const y = (i * 89 + elapsedTimeRef.current * 270) % viewHeight;
             ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 4, y + 10); ctx.stroke();
           }
         }
       }
 
       // Draw Retro GBA Clock Widget in top right (virtual screen space)
+      ctx.save();
+      ctx.translate(viewWidth - CANVAS_WIDTH, 0);
       const clockInfo = getGameClock(elapsedTimeRef.current);
       ctx.fillStyle = 'rgba(11, 12, 21, 0.8)';
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
@@ -2026,13 +2004,16 @@ export const FarmGame: React.FC = () => {
       ctx.fillText(clockInfo.timeStr, 688, 37);
       ctx.font = '10px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#f2f6d5';
       ctx.fillText(getWeather(elapsedTimeRef.current) === 'rain' ? 'RAIN · Crops watered' : 'SUNNY · Rain every 2 min', 782, 67);
+      ctx.restore();
 
       // Draw Retro GBA Inventory HUD in bottom middle (virtual screen space)
+      // Touch players already have a larger, tappable backpack below the world.
+      if (!surfaceRef.current?.classList.contains('farm-touch-enabled')) {
       const slotCount = p1.inventory.length;
       const hudW = slotCount * 38 + 16;
       const hudH = 44;
-      const hudX = (CANVAS_WIDTH - hudW) / 2;
-      const hudY = CANVAS_HEIGHT - hudH - 15;
+      const hudX = (viewWidth - hudW) / 2;
+      const hudY = viewHeight - hudH - 15;
 
       ctx.fillStyle = 'rgba(11, 12, 21, 0.85)';
       ctx.strokeStyle = 'rgba(255, 234, 0, 0.25)'; // matching retro neon yellow
@@ -2104,19 +2085,20 @@ export const FarmGame: React.FC = () => {
       }
 
       ctx.fillStyle = '#f7f2df'; ctx.font = '11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText(getItemName(p1.inventory[curSelected]?.type ?? null) || 'Empty slot', CANVAS_WIDTH / 2, hudY - 5);
+      ctx.fillText(getItemName(p1.inventory[curSelected]?.type ?? null) || 'Empty slot', viewWidth / 2, hudY - 5);
+      }
       const order = getOrder(farmRef.current.ordersCompleted);
       ctx.textAlign = 'left'; ctx.fillStyle = '#fff4d3'; ctx.font = '10px monospace';
-      ctx.fillText(`ORDER: ${order.name} · ${Object.entries(order.needs).map(([item, amount]) => `${farmRef.current.delivered[item] ?? 0}/${amount} ${item}`).join('  ')}`, 16, 91);
+      ctx.fillText(`ORDER: ${order.name} · ${Object.entries(order.needs).map(([item, amount]) => `${farmRef.current.delivered[item] ?? 0}/${amount} ${item}`).join('  ')}`, 16, 91, viewWidth - 32);
       if (Date.now() < noticeRef.current.until && !isBoardOpenRef.current) {
         ctx.font = 'bold 11px monospace';
-        const textWidth = ctx.measureText(noticeRef.current.message).width;
+        const textWidth = Math.min(viewWidth - 48, ctx.measureText(noticeRef.current.message).width);
         ctx.fillStyle = '#11251aeb';
-        ctx.fillRect((CANVAS_WIDTH - textWidth) / 2 - 14, 104, textWidth + 28, 30);
+        ctx.fillRect((viewWidth - textWidth) / 2 - 14, 104, textWidth + 28, 30);
         ctx.fillStyle = '#f8e8ad';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(noticeRef.current.message, CANVAS_WIDTH / 2, 119);
+        ctx.fillText(noticeRef.current.message, viewWidth / 2, 119, textWidth);
       }
 
       ctx.restore(); // Restores viewport scale & letterbox offset
@@ -2176,26 +2158,27 @@ export const FarmGame: React.FC = () => {
   }
 
   return (
-    <div className="game-main-content">
+    <div ref={rootRef} className="game-main-content farm-game">
       {/* Game Header Bar */}
       <GameHeader
         volume={volume}
-        isFullscreen={isFullscreen}
+        isFullscreen={isFullscreen || isImmersive}
         onVolumeChange={handleVolumeChange}
         onToggleFullscreen={toggleFullscreen}
-        onRestart={triggerRestart}
+        onMenu={toggleFarmMenu}
         onExit={stopGame}
         gamepadConnected={gamepadConnected}
       />
 
       {/* Canvas container */}
-      <div className="canvas-container" style={{ position: 'relative' }}>
-        <canvas ref={canvasRef} tabIndex={0} aria-label="Farm world. Move with WASD, use items with Space, interact with E, and open the board with B." width={isFullscreen ? 1920 : CANVAS_WIDTH} height={isFullscreen ? 1080 : CANVAS_HEIGHT} />
-        {selectionComplete && <button className="farm-board-launch" onClick={() => { setIsChestOpen(false); setIsBoardOpen(true); keysRef.current = {}; }}>
+      <div ref={surfaceRef} className={`farm-play-surface ${selectionComplete ? 'farm-playing' : ''} ${touchEnabled ? 'farm-touch-enabled' : ''} ${isImmersive ? 'farm-immersive' : ''}`}>
+        <div className="canvas-container farm-viewport">
+        <canvas ref={canvasRef} tabIndex={0} aria-label="Farm world. Use touch controls, a controller, or WASD with Space and E." width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
+        {selectionComplete && <button className="farm-board-launch" onClick={openBoard}>
           <strong>🪙 {farmUi.progress.coins} · Farm level {getFarmLevel(farmUi.progress.xp).level}</strong>
           <small>🌻 Farm board [B] · Orders, shop & upgrades</small>
         </button>}
-        {selectionComplete && isBoardOpen && <FarmBoard progress={farmUi.progress} inventory={farmUi.inventory} chest={farmUi.chest} notice={farmUi.notice} onAction={performGameAction} onClose={closeFarmBoard} />}
+        <button className="farm-surface-menu" onClick={toggleFarmMenu} aria-label="Open farm menu">☰</button>
 
         {/* Animated Chimney GIF overlay */}
         <img
@@ -2210,6 +2193,9 @@ export const FarmGame: React.FC = () => {
             zIndex: 5,
           }}
         />
+        </div>
+        {selectionComplete && touchEnabled && <TouchControls inventory={farmUi.inventory} selected={selectedSlot} blocked={isBoardOpen || isChestOpen || isMenuOpen} onSelect={selectSlot} onMove={value => { touchMoveRef.current = value; }} onUse={triggerUseHeldItem} onInteract={triggerInteract} onBoard={openBoard} onMenu={toggleFarmMenu} />}
+        {selectionComplete && isBoardOpen && <FarmBoard progress={farmUi.progress} inventory={farmUi.inventory} chest={farmUi.chest} notice={farmUi.notice} onAction={performGameAction} onClose={closeFarmBoard} />}
 
         {/* Character Selection Screen Overlay */}
         {!selectionComplete && (
@@ -2227,16 +2213,18 @@ export const FarmGame: React.FC = () => {
           notice={farmUi.notice}
           chestItems={farmUi.chest}
           playerInventory={farmUi.inventory}
-          onClose={() => setIsChestOpen(false)}
+          onClose={closePanels}
           onTransferToPlayer={transferToPlayer}
           onTransferToChest={transferToChest}
         />
+        {isMenuOpen && <FarmMenu playing={selectionComplete} expanded={isFullscreen || isImmersive} touchEnabled={touchEnabled} muted={volume === 0} onClose={closePanels} onBoard={openBoard} onExpand={toggleFullscreen} onTouchToggle={() => { setTouchPreference(!touchEnabled); clearMovement(); }} onMute={() => { const nextVolume = volume === 0 ? .5 : 0; setVolume(nextVolume); if (audioRef.current) audioRef.current.volume = nextVolume; if (homeAudioRef.current) homeAudioRef.current.volume = nextVolume; }} onCharacters={triggerRestart} onExit={stopGame} />}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+      <div className="farm-controls-guide" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
         <div>
           <span>Walk: </span><span style={{ color: 'var(--text-primary)' }}>WASD / Arrows</span> · <span style={{ color: 'var(--text-primary)' }}>1–{farmUi.inventory.length} Select · Space Plant/Water · E Harvest/Interact · B Farm board</span><br />
-          <span>Controller: Stick to move · A use · X interact · Y board · B close · LB/RB select. Use mouse or keyboard to browse the board.</span>
+          <span>Controller: Stick/D-pad move · A/✕ use or confirm · X/□ interact · Y/△ board · B/○ back · LB/RB slots or tabs · Start/Options menu.</span><br />
+          <span>Touch: drag the thumbstick, tap a slot, then Plant/Water or Interact. Enable touch controls in Menu if needed.</span>
         </div>
         <div>
           <span style={{ color: 'var(--neon-yellow)', fontWeight: 600 }}>Grow · Trade · Build together</span>

@@ -48,6 +48,98 @@
 .farm-board-footer { display: grid; gap: 5px; padding: 10px 20px; background: #e8edd8; border-top: 1px solid #d6dfbd; flex-shrink: 0; }
 .farm-board-footer > span { font-weight: 600; min-height: 17px; }
 .farm-board-footer small { color: #78846b; font-size: 10px; }
+.farm-game { width: 100%; min-width: 0; }
+.farm-play-surface { width: 100%; max-width: 900px; position: relative; isolation: isolate; background: #14281e; border-radius: 12px; overflow: hidden; }
+.farm-play-surface .farm-viewport { max-width: none; aspect-ratio: 5 / 3; border-radius: 0; box-shadow: none; }
+.farm-viewport canvas { touch-action: none; outline: none; }
+.farm-surface-menu { position: absolute; right: 12px; bottom: 12px; z-index: 8; border: 1px solid #a4d59266; border-radius: 10px; width: 44px; height: 44px; color: #f7f2df; background: #10281eef; font-size: 22px; cursor: pointer; }
+.farm-controller-focused { outline: 3px solid #f6bd52 !important; outline-offset: 2px !important; box-shadow: 0 0 0 5px #1f382d !important; }
+.farm-character-select { padding: 24px; gap: 16px; text-align: center; box-sizing: border-box; overflow: auto; }
+.farm-character-select h2 { font-size: clamp(20px, 3vw, 34px); }
+.farm-character-select p { margin: 0; font-size: 13px; color: #d0dbca; }
+.farm-character-select > small { color: #c4d7ad; line-height: 1.6; }
+.farm-character-options { display: flex; justify-content: center; gap: 18px; width: 100%; }
+.farm-character-options button { width: 180px; padding: 14px; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 8px; background: #13251cee; border: 1px solid #779665; border-radius: 12px; font: inherit; cursor: pointer; }
+.farm-character-options button[aria-pressed="true"] { background: #385d31; border-color: #e4dc8e; }
+.farm-character-options img { width: 65px; height: 65px; object-fit: contain; image-rendering: pixelated; }
+.farm-character-options small { color: #c6d9af; font-size: 10px; }
+.farm-menu-shade { z-index: 150; }
+.farm-menu { max-width: 440px; width: 100%; max-height: 100%; overflow-y: auto; padding: 20px; border-radius: 14px; background: #f7f2df; color: #283e30; border: 2px solid #b9ce9e; box-sizing: border-box; font: 13px system-ui, sans-serif; }
+.farm-menu h2 { margin: 0 0 8px; font-size: 22px; }
+.farm-menu p { color: #637158; line-height: 1.5; }
+.farm-menu-buttons { display: grid; gap: 8px; }
+.farm-menu button { text-align: left; font: inherit; font-weight: 650; min-height: 44px; border: 1px solid #afc19d; border-radius: 8px; background: #fffdf4; color: #2d5033; padding: 10px 14px; cursor: pointer; touch-action: manipulation; }
+.farm-menu button:disabled { opacity: .45; cursor: not-allowed; }
+.farm-controller-help { font-size: 11px; }
+.farm-touch-controls { background: #14281e; color: #e7eddc; padding: 10px 14px 8px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.farm-touch-controls.is-blocked { pointer-events: none; }
+.farm-touch-inventory { display: flex; justify-content: safe center; overflow-x: auto; gap: 6px; padding: 3px; scrollbar-width: thin; touch-action: pan-x; }
+.farm-touch-inventory button { flex: 0 0 44px; height: 44px; border: 1px solid #728869; border-radius: 8px; background: #263e2e; color: #fff; position: relative; cursor: pointer; font-size: 23px; touch-action: manipulation; }
+.farm-touch-inventory button[aria-pressed="true"] { border: 2px solid #f2d77c; background: #46613b; }
+.farm-touch-inventory small { position: absolute; bottom: 2px; right: 4px; font: bold 10px system-ui; color: #ffeeb2; }
+.farm-touch-actions { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 10px 3px 0; max-width: 540px; margin: auto; }
+.farm-joystick { width: 112px; height: 112px; flex-shrink: 0; border-radius: 50%; border: 2px solid #8aa478; background: radial-gradient(circle, #66835a50 0 40%, #304a36 41% 100%); position: relative; display: grid; place-items: center; touch-action: none; cursor: grab; }
+.farm-joystick-guides { font-size: 60px; line-height: 1; color: #a9b99d66; pointer-events: none; }
+.farm-joystick-knob { position: absolute; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #e2db9a; background: #a2b574; box-shadow: 0 3px 8px #0007; pointer-events: none; }
+.farm-joystick > small { position: absolute; bottom: 4px; font: bold 8px system-ui; letter-spacing: 1px; color: #c4d1b4; pointer-events: none; }
+.farm-touch-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex: 1; max-width: 250px; }
+.farm-touch-buttons button { border: 1px solid #8aa478; border-radius: 12px; min-height: 44px; padding: 8px; background: #314c36; color: #f5f2dc; font: 600 12px system-ui; cursor: pointer; touch-action: manipulation; }
+.farm-touch-buttons .farm-touch-use, .farm-touch-buttons .farm-touch-interact { min-height: 64px; background: #e3dca4; color: #26432b; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 2px; }
+.farm-touch-buttons .farm-touch-interact { background: #a4c5a8; }
+.farm-touch-buttons button > span { font-size: 21px; }
+.farm-touch-buttons button:active { transform: translateY(1px); filter: brightness(1.15); }
+.farm-touch-buttons button:disabled { opacity: .4; }
+.farm-touch-hint { font: 10px/1.4 system-ui; margin: 8px 0 0; color: #c1d1b4; text-align: center; }
+.farm-touch-enabled.farm-playing .farm-surface-menu { display: none; }
+.farm-play-surface:fullscreen, .farm-play-surface.farm-immersive { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; display: flex; flex-direction: column; border-radius: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); box-sizing: border-box; background: #102019; z-index: 1000; }
+.farm-play-surface:fullscreen .farm-viewport, .farm-play-surface.farm-immersive .farm-viewport { flex: 1; min-height: 0; aspect-ratio: auto; }
+.farm-play-surface:fullscreen .farm-touch-controls, .farm-play-surface.farm-immersive .farm-touch-controls { flex-shrink: 0; }
+.farm-game button:focus-visible { outline: 3px solid #f6bd52; outline-offset: 2px; }
+@media (max-width: 700px) {
+  .farm-game .game-title-text { font-size: 15px; }
+  .farm-game .game-header-bar { padding: 10px !important; }
+  .farm-game .game-header-bar button { min-height: 40px; }
+  .farm-play-surface:not(.farm-playing) { min-height: 370px; }
+  .farm-character-select { gap: 12px; padding: 18px 12px; }
+  .farm-character-select p { font-size: 12px; }
+  .farm-character-options { gap: 10px; }
+  .farm-character-options button { padding: 10px; min-width: 0; width: 46%; font-size: 12px; }
+  .farm-character-select > small { font-size: 10px; }
+  .farm-board-shade { padding: 6px; }
+  .farm-board button { min-height: 44px; padding: 7px 10px; }
+  .farm-board-tabs { padding: 6px 10px; gap: 4px; }
+  .farm-board-tabs button { font-size: 11px; }
+  .farm-board-launch { top: 5px; left: 5px; padding: 5px 8px; max-width: 58%; }
+  .farm-board-launch small { font-size: 9px; }
+  .farm-board-launch strong { font-size: 11px; }
+  .farm-surface-menu { right: 6px; bottom: 6px; width: 40px; height: 40px; }
+  .farm-board-stats { font-size: 10px; }
+  .farm-board-footer { padding: 8px 10px; }
+  .farm-board-footer small { font-size: 9px; }
+  .farm-controls-guide { font-size: 11px !important; line-height: 1.6; }
+  .farm-controls-guide > div:last-child { display: none; }
+  .farm-game .chest-overlay { padding: 12px !important; }
+  .farm-game .chest-overlay h3 { font-size: 13px !important; }
+}
+@media (max-width: 360px) {
+  .farm-touch-controls { padding-inline: 8px; }
+  .farm-touch-actions { gap: 12px; }
+  .farm-joystick { width: 96px; height: 96px; }
+  .farm-touch-inventory { justify-content: flex-start; }
+}
+@media (orientation: landscape) and (max-height: 550px) {
+  .farm-play-surface:fullscreen .farm-touch-controls, .farm-play-surface.farm-immersive .farm-touch-controls { position: absolute; inset: auto 10px 8px; background: transparent; padding: 0; pointer-events: none; }
+  .farm-play-surface:fullscreen .farm-touch-actions, .farm-play-surface.farm-immersive .farm-touch-actions { max-width: none; }
+  .farm-play-surface:fullscreen .farm-touch-inventory, .farm-play-surface.farm-immersive .farm-touch-inventory { position: absolute; bottom: 0; left: 130px; right: 165px; pointer-events: auto; }
+  .farm-play-surface:fullscreen .farm-touch-buttons, .farm-play-surface.farm-immersive .farm-touch-buttons { max-width: 145px; pointer-events: auto; }
+  .farm-play-surface:fullscreen .farm-joystick, .farm-play-surface.farm-immersive .farm-joystick { pointer-events: auto; background-color: #173323b3; }
+  .farm-play-surface:fullscreen .farm-touch-hint, .farm-play-surface.farm-immersive .farm-touch-hint { display: none; }
+  .farm-board-heading { padding-block: 8px; }
+  .farm-character-select { gap: 8px; }
+  .farm-character-options img { width: 45px; height: 45px; }
+  .farm-menu { max-width: 650px; padding: 14px; }
+  .farm-menu-buttons { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 600px) {
   .farm-board { font-size: 11px; border-radius: 10px; }
   .farm-board-heading { padding: 8px 12px; }

@@ -6,7 +6,7 @@ interface GameHeaderProps {
   isFullscreen: boolean;
   onVolumeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onToggleFullscreen: () => void;
-  onRestart: () => void;
+  onMenu: () => void;
   onExit: () => void;
   gamepadConnected?: boolean;
 }
@@ -16,7 +16,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   isFullscreen,
   onVolumeChange,
   onToggleFullscreen,
-  onRestart,
+  onMenu,
   onExit,
   gamepadConnected,
 }) => {
@@ -60,10 +60,10 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
 
         <button className="copy-btn" onClick={onToggleFullscreen} style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
-          <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+          <span>{isFullscreen ? 'Exit expanded view' : 'Expand'}</span>
         </button>
-        <button className="copy-btn" onClick={onRestart} style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>
-          Choose Characters
+        <button className="copy-btn" onClick={onMenu} style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>
+          ☰ Menu
         </button>
         <button className="glow-btn-magenta" onClick={onExit} style={{ padding: '0.4rem 1.2rem', fontSize: '0.8rem' }}>
           Exit Game
