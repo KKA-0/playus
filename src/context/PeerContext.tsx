@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, useRef } from 'react';
 import { Peer } from 'peerjs';
 import type { DataConnection } from 'peerjs';
 import { checkNetworkHostability } from '../utils/networkCheck';
@@ -337,14 +337,17 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const sendGameData = (data: any) => {
+  // Game loops keep these callbacks in long-lived animation effects. Keeping
+  // their identities stable prevents every incoming sync packet from
+  // needlessly tearing down and restarting those effects.
+  const sendGameData = useCallback((data: any) => {
     if (connRef.current && connRef.current.open) {
       connRef.current.send({
         type: 'game_sync',
         payload: data,
       });
     }
-  };
+  }, []);
 
   // Select game (Host authoritative, client can request but let's make host broadcast)
   const selectGame = (game: 'platformer' | 'shooter' | 'chained' | 'farm' | null) => {
@@ -376,21 +379,21 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const resetGameEvent = () => {
+  const resetGameEvent = useCallback(() => {
     setGameEvent(null);
-  };
+  }, []);
 
 
 
   // Broadcast one-off game events (e.g. key collect, level advancement)
-  const sendGameEvent = (data: any) => {
+  const sendGameEvent = useCallback((data: any) => {
     if (connRef.current && connRef.current.open) {
       connRef.current.send({
         type: 'game_event',
         payload: data,
       });
     }
-  };
+  }, []);
 
   return (
     <PeerContext.Provider

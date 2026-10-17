@@ -35,6 +35,11 @@ interface Particle {
   maxLife: number;
 }
 
+// Rendering can run at 60-144+ FPS, but player snapshots do not need to.
+// Capping sends prevents reliable WebRTC queues and React context updates from
+// competing with the host's physics work.
+const NETWORK_SYNC_INTERVAL_MS = 1000 / 30;
+
 /** Check if player is near/inside the exit door zone */
 const isPlayerInExitZone = (p: PlayerState, doorRow: number, doorCol: number) => {
   const zoneLeft = Math.max(0, (doorCol - 0.5) * TILE_SIZE);
@@ -411,16 +416,16 @@ export const PlatformerGame: React.FC = () => {
     spawnParticles(remotePlayerRef.current.x + 12, remotePlayerRef.current.y + 16, '#ff00a0', 16);
   }, [isHost, spawnParticles]);
 
-  const restartCurrentLevel = () => {
+  const restartCurrentLevel = useCallback(() => {
     const levelIdx = levelStateRef.current.currentLevel;
     levelStateRef.current.doorUnlocked = false;
     levelStateRef.current.gateOpen = false;
     levelStateRef.current.levelCompleted = false;
     setDoorUnlockedState(false);
     resetPlayerPositions(levelIdx);
-    sendGameEvent({ type: 'level_reset' });
-    sendGameData({ levelState: levelStateRef.current });
-  };
+    sendGameEvent({ game: 'platformer', type: 'level_reset' });
+    sendGameData({ game: 'platformer', levelState: levelStateRef.current });
+  }, [resetPlayerPositions, sendGameData, sendGameEvent]);
 
   const handleRestartLevel = () => {
     if (gameCompleted) return;
@@ -428,7 +433,7 @@ export const PlatformerGame: React.FC = () => {
     if (isHost) {
       restartCurrentLevel();
     } else {
-      sendGameData({ type: 'request_restart_level' });
+      sendGameData({ game: 'platformer', type: 'request_restart_level' });
     }
   };
 
@@ -483,7 +488,7 @@ export const PlatformerGame: React.FC = () => {
 
   // Handle incoming data
   useEffect(() => {
-    if (!gameData) return;
+    if (!gameData || gameData.game !== 'platformer') return;
 
     if (!isHost) {
       if (gameData.player) {
@@ -533,13 +538,13 @@ export const PlatformerGame: React.FC = () => {
 
   // Handle one-off game events
   useEffect(() => {
-    if (!gameEvent) return;
+    if (!gameEvent || gameEvent.game !== 'platformer') return;
 
     if (gameEvent.type === 'level_reset') {
       resetPlayerPositions(levelStateRef.current.currentLevel);
     } else if (gameEvent.type === 'request_reset' && isHost) {
       sfx.death(volume);
-      sendGameEvent({ type: 'level_reset' });
+      sendGameEvent({ game: 'platformer', type: 'level_reset' });
       resetPlayerPositions(levelStateRef.current.currentLevel);
     } else if (gameEvent.type === 'game_win') {
       setGameCompleted(true);
@@ -570,12 +575,13 @@ export const PlatformerGame: React.FC = () => {
       resetPlayerPositions(nextIdx);
 
       sendGameData({
+        game: 'platformer',
         levelState: levelStateRef.current
       });
     } else {
       levelStateRef.current.levelCompleted = true;
       setGameCompleted(true);
-      sendGameEvent({ type: 'game_win' });
+      sendGameEvent({ game: 'platformer', type: 'game_win' });
       confetti({
         particleCount: 180,
         spread: 100,
@@ -589,6 +595,7 @@ export const PlatformerGame: React.FC = () => {
     let animationId: number;
 
     let lastTime = performance.now();
+    let lastNetworkSyncTime = 0;
     const timeStep = 1000 / 60;
     let accumulator = 0;
 
@@ -605,7 +612,7 @@ export const PlatformerGame: React.FC = () => {
       }
 
       drawGame();
-      syncNetwork();
+      syncNetwork(currentTime);
       animationId = requestAnimationFrame(gameLoop);
     };
 
@@ -902,10 +909,10 @@ export const PlatformerGame: React.FC = () => {
     const handlePlayerDeath = () => {
       sfx.death(volume);
       if (isHost) {
-        sendGameEvent({ type: 'level_reset' });
+        sendGameEvent({ game: 'platformer', type: 'level_reset' });
         resetPlayerPositions(levelStateRef.current.currentLevel);
       } else {
-        sendGameEvent({ type: 'request_reset' });
+        sendGameEvent({ game: 'platformer', type: 'request_reset' });
       }
     };
 
@@ -1215,10 +1222,14 @@ export const PlatformerGame: React.FC = () => {
     };
 
     // Network Sync
-    const syncNetwork = () => {
+    const syncNetwork = (currentTime: number) => {
+      if (currentTime - lastNetworkSyncTime < NETWORK_SYNC_INTERVAL_MS) return;
+      lastNetworkSyncTime = currentTime;
+
       const myState = localPlayerRef.current;
 
       const payload: any = {
+        game: 'platformer',
         player: {
           x: myState.x,
           y: myState.y,
@@ -1244,14 +1255,24 @@ export const PlatformerGame: React.FC = () => {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [isConnected, isHost, gameCompleted, advanceToNextLevel, volume]);
+  }, [
+    isConnected,
+    isHost,
+    gameCompleted,
+    advanceToNextLevel,
+    volume,
+    spawnParticles,
+    sendGameEvent,
+    resetPlayerPositions,
+    sendGameData,
+  ]);
 
   // Host listener for client restart requests
   useEffect(() => {
-    if (isHost && gameData?.type === 'request_restart_level') {
+    if (isHost && gameData?.game === 'platformer' && gameData.type === 'request_restart_level') {
       restartCurrentLevel();
     }
-  }, [gameData, isHost]);
+  }, [gameData, isHost, restartCurrentLevel]);
 
   const handleRestartGame = () => {
     setGameCompleted(false);
@@ -1267,8 +1288,9 @@ export const PlatformerGame: React.FC = () => {
       setDoorUnlockedState(false);
       resetPlayerPositions(0);
 
-      sendGameEvent({ type: 'level_reset' });
+      sendGameEvent({ game: 'platformer', type: 'level_reset' });
       sendGameData({
+        game: 'platformer',
         levelState: levelStateRef.current
       });
     }
