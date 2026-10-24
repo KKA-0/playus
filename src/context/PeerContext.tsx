@@ -3,6 +3,7 @@ import { Peer } from 'peerjs';
 import type { DataConnection } from 'peerjs';
 import { checkNetworkHostability } from '../utils/networkCheck';
 import type { NetworkStatusType } from '../utils/networkCheck';
+import { generateLobbyCode, LOBBY_CODE_PATTERN, normalizeLobbyCode } from '../utils/lobbyInvite';
 
 export interface ChatMessage {
   id: string;
@@ -220,8 +221,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setConnectionError(null);
       setIsHost(true);
 
-      // Create peer object (connects to PeerJS public cloud signaling server)
-      const peer = new Peer({
+      const peerOptions = {
           debug: 3,
           config: {
             iceServers: [
@@ -233,37 +233,53 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
               },
             ],
           },
+        };
+
+      const createLobby = (attempt: number) => {
+        const lobbyCode = generateLobbyCode();
+        const peer = new Peer(lobbyCode, peerOptions);
+        peerRef.current = peer;
+
+        peer.on('open', (id) => {
+          setPeerId(id);
+          setIsConnecting(false);
+          addSystemMessage(`Lobby created. Code: ${id}`);
+          resolve(id);
         });
 
-      peerRef.current = peer;
+        peer.on('connection', (conn) => {
+          // Accept incoming connection (close old one if exists)
+          cleanupConnection();
+          addSystemMessage(`Incoming connection from ${conn.peer.substring(0, 6)}...`);
+          setupConnectionListeners(conn);
+        });
 
-      peer.on('open', (id) => {
-        setPeerId(id);
-        setIsConnecting(false);
-        addSystemMessage(`Lobby created. Code: ${id}`);
-        resolve(id);
-      });
+        peer.on('error', (err) => {
+          // The signalling server guarantees room IDs are unique. In the rare
+          // event of a collision, generate a fresh friendly code automatically.
+          if (err.type === 'unavailable-id' && attempt < 5) {
+            peer.destroy();
+            createLobby(attempt + 1);
+            return;
+          }
 
-      peer.on('connection', (conn) => {
-        // Accept incoming connection (close old one if exists)
-        cleanupConnection();
-        addSystemMessage(`Incoming connection from ${conn.peer.substring(0, 6)}...`);
-        setupConnectionListeners(conn);
-      });
+          console.error('Peer host error:', err);
+          setIsConnecting(false);
+          setIsHost(false);
+          setConnectionError('Could not create a unique lobby. Please try again.');
+          reject(err);
+        });
+      };
 
-      peer.on('error', (err) => {
-        console.error('Peer host error:', err);
-        setIsConnecting(false);
-        setConnectionError(`Failed to host: ${err.type}`);
-        reject(err);
-      });
+      createLobby(1);
     });
   };
 
   const joinGame = (id: string): Promise<void> => {
     return new Promise((resolve, reject) => {
-      if (!id || id.trim() === '') {
-        setConnectionError('Please enter a valid lobby code.');
+      const lobbyCode = normalizeLobbyCode(id);
+      if (!LOBBY_CODE_PATTERN.test(lobbyCode)) {
+        setConnectionError('Enter a 6-character code with 3 letters followed by 3 numbers.');
         reject('Invalid code');
         return;
       }
@@ -283,7 +299,7 @@ export const PeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPeerId(localId);
 
         // Initiate connection to host
-        const conn = peer.connect(id.trim(), {
+        const conn = peer.connect(lobbyCode, {
           reliable: true,
         });
 

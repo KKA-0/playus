@@ -329,7 +329,7 @@ body {
 
 /* Connecting Screen */
 .connecting-container {
-  max-width: 500px;
+  max-width: 620px;
   margin: 8rem auto;
   padding: 3rem;
   text-align: center;
@@ -409,6 +409,113 @@ body {
   display: flex;
   gap: 0.5rem;
   margin-top: 0.5rem;
+}
+
+.invite-options {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.invite-option {
+  padding: 1rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  text-align: left;
+}
+
+.invite-option-primary {
+  border-color: rgba(0, 240, 255, 0.55);
+  box-shadow: inset 0 0 24px rgba(0, 240, 255, 0.06), 0 0 16px rgba(0, 240, 255, 0.08);
+}
+
+.invite-option-code {
+  border-color: rgba(255, 0, 127, 0.55);
+  box-shadow: inset 0 0 24px rgba(255, 0, 127, 0.06), 0 0 16px rgba(255, 0, 127, 0.08);
+}
+
+.invite-option-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--neon-cyan);
+}
+
+.invite-option-code .invite-option-heading {
+  color: var(--neon-magenta);
+}
+
+.invite-option-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.invite-option-heading strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+.invite-option-heading span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.invite-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.invite-divider::before,
+.invite-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border);
+}
+
+.lobby-code {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(255, 0, 127, 0.4);
+  border-radius: 8px;
+  background: rgba(255, 0, 127, 0.08);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-align: center;
+  text-shadow: 0 0 12px rgba(255, 0, 127, 0.65);
+}
+
+.invite-copy-btn {
+  min-width: 118px;
+  gap: 0.45rem;
+}
+
+@media (max-width: 560px) {
+  .connecting-container {
+    margin: 3rem 1rem;
+    padding: 1.5rem;
+  }
+
+  .invite-option .share-block {
+    flex-direction: column;
+  }
+
+  .invite-copy-btn {
+    width: 100%;
+    padding: 0.7rem;
+  }
 }
 
 .copy-input {

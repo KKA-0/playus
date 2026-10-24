@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePeer } from '../context/PeerContext';
 import { 
   Play, Copy, Check, MessageSquare, Users, Wifi, 
-  Gamepad2, LogOut, ArrowRight, ShieldAlert, RefreshCw, CheckCircle2
+  Gamepad2, LogOut, ArrowRight, ShieldAlert, RefreshCw, CheckCircle2, Link2, KeyRound
 } from 'lucide-react';
+import { buildInviteLink, getLobbyCodeFromUrl, normalizeLobbyCode } from '../utils/lobbyInvite';
 
 export const Lobby: React.FC = () => {
   const {
@@ -26,21 +27,39 @@ export const Lobby: React.FC = () => {
     recheckNetwork,
   } = usePeer();
 
-  const [inputCode, setInputCode] = useState<string>('');
-  const [copied, setCopied] = useState<boolean>(false);
+  const invitedCode = getLobbyCodeFromUrl(window.location.href);
+  const [inputCode, setInputCode] = useState<string>(invitedCode);
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null);
   const [chatInput, setChatInput] = useState<string>('');
-  
+  const autoJoinStartedRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!invitedCode || peerId || isConnecting || autoJoinStartedRef.current) return;
+
+    // Delaying one tick keeps automatic joining stable in React Strict Mode.
+    const timer = window.setTimeout(() => {
+      if (autoJoinStartedRef.current) return;
+      autoJoinStartedRef.current = true;
+      void joinGame(invitedCode).catch(console.error);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [invitedCode, isConnecting, joinGame, peerId]);
 
   // Auto-scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(peerId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async (value: string, type: 'code' | 'link') => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(type);
+      window.setTimeout(() => setCopied(null), 2000);
+    } catch (err) {
+      console.error('Could not copy invite:', err);
+    }
   };
 
   const handleHost = async () => {
@@ -83,7 +102,7 @@ export const Lobby: React.FC = () => {
               <Users size={32} />
             </div>
             <h2>Host a Lobby</h2>
-            <p>Create a new co-op session and get a shareable code to invite your friend.</p>
+            <p>Create a new co-op session and invite your friend with one link or a short code.</p>
 
             {/* Network Hostability Check */}
             <div className="network-test-section" title={networkDetails} style={{ marginBottom: '1.25rem', marginTop: '0.5rem', width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -174,14 +193,18 @@ export const Lobby: React.FC = () => {
               <Gamepad2 size={32} />
             </div>
             <h2>Join a Lobby</h2>
-            <p>Enter the game lobby code provided by your friend to join their session.</p>
+            <p>Open your friend's invite link, or enter their 6-character lobby code here.</p>
             <form onSubmit={handleJoin} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <input
                 type="text"
                 className="input-neon"
-                placeholder="Enter Lobby Code..."
+                placeholder="ABC123"
                 value={inputCode}
-                onChange={(e) => setInputCode(e.target.value)}
+                onChange={(e) => setInputCode(normalizeLobbyCode(e.target.value))}
+                maxLength={6}
+                autoCapitalize="characters"
+                autoComplete="off"
+                aria-label="6-character lobby code"
               />
               <button 
                 type="submit" 
@@ -227,6 +250,8 @@ export const Lobby: React.FC = () => {
 
   // Render Waiting for Peer Screen (Hosted but nobody joined yet)
   if (isHost && !isConnected && peerId) {
+    const inviteLink = buildInviteLink(window.location.href, peerId);
+
     return (
       <div className="connecting-container glass-panel">
         <div className="spinner">
@@ -235,13 +260,44 @@ export const Lobby: React.FC = () => {
           <div className="spinner-ring"></div>
         </div>
         <h2 className="font-display text-cyan">Waiting for Player 2...</h2>
-        <p style={{ color: 'var(--text-secondary)' }}>Share this code with your friend to connect.</p>
-        
-        <div className="share-block">
-          <div className="copy-input">{peerId}</div>
-          <button className="copy-btn" onClick={handleCopyCode} title="Copy Code">
-            {copied ? <Check size={16} className="text-green" /> : <Copy size={16} />}
-          </button>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Send either option to your friend.</p>
+
+        <div className="invite-options">
+          <section className="invite-option invite-option-primary">
+            <div className="invite-option-heading">
+              <Link2 size={18} />
+              <div>
+                <strong>Share invite link</strong>
+                <span>Best option · opens and joins automatically</span>
+              </div>
+            </div>
+            <div className="share-block">
+              <div className="copy-input" title={inviteLink}>{inviteLink}</div>
+              <button className="copy-btn invite-copy-btn" onClick={() => handleCopy(inviteLink, 'link')} title="Copy invite link">
+                {copied === 'link' ? <Check size={16} className="text-green" /> : <Copy size={16} />}
+                <span>{copied === 'link' ? 'Copied!' : 'Copy link'}</span>
+              </button>
+            </div>
+          </section>
+
+          <div className="invite-divider"><span>OR</span></div>
+
+          <section className="invite-option invite-option-code">
+            <div className="invite-option-heading">
+              <KeyRound size={18} />
+              <div>
+                <strong>Join with code</strong>
+                <span>Enter this on the Arcade Lobby screen</span>
+              </div>
+            </div>
+            <div className="share-block">
+              <div className="lobby-code" aria-label={`Lobby code ${peerId}`}>{peerId}</div>
+              <button className="copy-btn invite-copy-btn" onClick={() => handleCopy(peerId, 'code')} title="Copy lobby code">
+                {copied === 'code' ? <Check size={16} className="text-green" /> : <Copy size={16} />}
+                <span>{copied === 'code' ? 'Copied!' : 'Copy code'}</span>
+              </button>
+            </div>
+          </section>
         </div>
 
         <button className="glow-btn-magenta" onClick={disconnect} style={{ padding: '0.5rem 1.5rem', marginTop: '1rem' }}>

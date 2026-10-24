@@ -27,7 +27,9 @@ const AppContent: React.FC = () => {
 
   const [chatInput, setChatInput] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const [userWantsLanding, setUserWantsLanding] = useState<boolean>(true);
+  const [userWantsLanding, setUserWantsLanding] = useState<boolean>(
+    () => !new URLSearchParams(window.location.search).has('join'),
+  );
   const [showPrivacy, setShowPrivacy] = useState<boolean>(false);
 
   // Computed state: Show landing if user wants it AND they are not actively hosting/connected AND not looking at privacy policy
