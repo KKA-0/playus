@@ -23,7 +23,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
         </h1>
         
         <p className="landing-hero-subtitle">
-          Experience instant co-op gaming directly in your browser. Zero downloads, zero user accounts, and no hassle. Just select a game, share a code with your friend, and start playing!
+          Experience instant co-op gaming directly in your browser. Zero downloads, zero user accounts, and no hassle. Just select a game, share an invite, and start playing!
         </p>
 
         <div className="hero-characters-ref">
@@ -73,7 +73,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
             </div>
             <h3>No Accounts, No Barriers</h3>
             <p>
-              We believe games should start in seconds. No login credentials, no email verification, no cookies, and no tracking. You spawn a room, text the code to your friend, and start playing immediately.
+              We believe games should start in seconds. No login credentials, no email verification, no cookies, and no tracking. You spawn a room, send the link or short code to your friend, and start playing immediately.
             </p>
           </div>
 
@@ -165,14 +165,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartPlaying }) => {
 
           <div className="step-card glass-panel">
             <div className="step-number">2</div>
-            <h4 className="step-title">Copy Invite Code</h4>
-            <p className="step-desc">Copy the generated lobby room code to your clipboard.</p>
+            <h4 className="step-title">Copy Your Invite</h4>
+            <p className="step-desc">Copy the instant invite link or the short six-character room code.</p>
           </div>
 
           <div className="step-card glass-panel">
             <div className="step-number">3</div>
-            <h4 className="step-title">Share Code</h4>
-            <p className="step-desc">Send the code to your friend. They enter it on their browser to connect.</p>
+            <h4 className="step-title">Share With a Friend</h4>
+            <p className="step-desc">Send the link for one-tap joining, or share the code for manual entry.</p>
           </div>
 
           <div className="step-card glass-panel">

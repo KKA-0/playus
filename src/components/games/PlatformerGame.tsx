@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { usePeer } from '../../context/PeerContext';
-import { Gamepad2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import {
+  ArrowLeft, ArrowRight, ArrowUp, Gamepad2, Maximize2, Minimize2,
+  RotateCcw, Smartphone, Volume2, VolumeX,
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 import {
@@ -267,6 +270,56 @@ export const PlatformerGame: React.FC = () => {
   const coyoteTimerRef = useRef<number>(0);
   const jumpBufferTimerRef = useRef<number>(0);
   const prevGateOpenRef = useRef<boolean>(false);
+
+  // Match Chained Together's three-zone mobile controller: left, jump, right.
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const userAgentMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent);
+    const touchCapable = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    return userAgentMobile || (touchCapable && window.innerWidth <= 1024);
+  });
+  const mobileTouchRef = useRef({ left: false, jump: false, right: false });
+  const [activeTouches, setActiveTouches] = useState({ left: false, middle: false, right: false });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const userAgentMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(navigator.userAgent);
+      const touchCapable = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      setIsMobile(userAgentMobile || (touchCapable && window.innerWidth <= 1024));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleTouchUpdate = (event: React.TouchEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    let left = false;
+    let jump = false;
+    let right = false;
+
+    for (let index = 0; index < event.touches.length; index++) {
+      const relativeX = event.touches[index].clientX - bounds.left;
+      if (relativeX < bounds.width / 3) {
+        left = true;
+      } else if (relativeX < (bounds.width * 2) / 3) {
+        jump = true;
+      } else {
+        right = true;
+      }
+    }
+
+    if (jump && !mobileTouchRef.current.jump) {
+      jumpBufferTimerRef.current = 8;
+    }
+
+    mobileTouchRef.current = { left, jump, right };
+    keysRef.current['a'] = left;
+    keysRef.current['w'] = jump;
+    keysRef.current['d'] = right;
+    setActiveTouches({ left, middle: jump, right });
+  };
 
   // Preloaded Game Sprites
   const brickImgRef = useRef<HTMLImageElement | null>(null);
@@ -1339,6 +1392,13 @@ export const PlatformerGame: React.FC = () => {
             </div>
           )}
 
+          {isMobile && (
+            <div className="peer-badge" style={{ borderColor: 'var(--neon-purple)', color: 'var(--neon-purple)', gap: '0.4rem' }}>
+              <Smartphone size={14} />
+              <span>Touch Controls</span>
+            </div>
+          )}
+
           <button
             className="glow-btn-cyan font-display"
             onClick={handleRestartLevel}
@@ -1375,6 +1435,35 @@ export const PlatformerGame: React.FC = () => {
       <div className="canvas-container">
         <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
 
+        {isMobile && !gameCompleted && (
+          <div
+            className="mobile-touch-overlay"
+            onTouchStart={handleTouchUpdate}
+            onTouchMove={handleTouchUpdate}
+            onTouchEnd={handleTouchUpdate}
+            onTouchCancel={handleTouchUpdate}
+          >
+            <div className={`mobile-touch-zone zone-left ${activeTouches.left ? 'active' : ''}`}>
+              <div className="touch-zone-content">
+                <div className="touch-zone-icon"><ArrowLeft size={24} /></div>
+                <span className="touch-zone-label">Move Left</span>
+              </div>
+            </div>
+            <div className={`mobile-touch-zone zone-middle ${activeTouches.middle ? 'active' : ''}`}>
+              <div className="touch-zone-content">
+                <div className="touch-zone-icon"><ArrowUp size={24} /></div>
+                <span className="touch-zone-label">Jump</span>
+              </div>
+            </div>
+            <div className={`mobile-touch-zone zone-right ${activeTouches.right ? 'active' : ''}`}>
+              <div className="touch-zone-content">
+                <div className="touch-zone-icon"><ArrowRight size={24} /></div>
+                <span className="touch-zone-label">Move Right</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Game Victory Overlay */}
         {gameCompleted && (
           <div className="canvas-overlay">
@@ -1397,8 +1486,8 @@ export const PlatformerGame: React.FC = () => {
       </div>
 
       {/* Interactive Controls & On-Screen Buttons */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '900px', marginTop: '0.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+      <div className="game-controls-panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', maxWidth: '900px', marginTop: '0.5rem' }}>
+        <div className="game-controls-summary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           <div>
             <span>Your Player: </span>
             <span className="font-display" style={{ fontWeight: 700, color: isHost ? '#00e1ff' : '#ff00a0' }}>
@@ -1407,7 +1496,11 @@ export const PlatformerGame: React.FC = () => {
           </div>
           <div>
             <span>Controls: </span>
-            <span className="control-key">A</span> / <span className="control-key">D</span> or <span className="control-key">←</span> / <span className="control-key">→</span> Move | <span className="control-key">W</span> / <span className="control-key">Space</span> Jump
+            {isMobile ? (
+              <span>Left screen to move left · Middle to jump · Right screen to move right</span>
+            ) : (
+              <><span className="control-key">A</span> / <span className="control-key">D</span> or <span className="control-key">←</span> / <span className="control-key">→</span> Move | <span className="control-key">W</span> / <span className="control-key">Space</span> Jump</>
+            )}
             {gamepadConnected && (
               <span> | <span className="control-key">Stick</span> / <span className="control-key">D-Pad</span> Move | <span className="control-key">A</span> / <span className="control-key">↑</span> Jump</span>
             )}
@@ -1415,7 +1508,7 @@ export const PlatformerGame: React.FC = () => {
         </div>
 
         {/* Touch & Mouse Virtual Control Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', width: '100%' }}>
+        {!isMobile && <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', width: '100%' }}>
           <button
             className="glow-btn-cyan font-display"
             style={{ padding: '0.5rem 1.4rem', fontSize: '0.85rem', userSelect: 'none', touchAction: 'manipulation' }}
@@ -1449,7 +1542,7 @@ export const PlatformerGame: React.FC = () => {
           >
             Move Right ►
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   );

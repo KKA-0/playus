@@ -398,7 +398,7 @@ export const Lobby: React.FC = () => {
 
         {/* Launch actions */}
         <div className="lobby-launch-bar glass-panel">
-          <div style={{ display: 'flex', gap: '2rem' }}>
+          <div className="lobby-launch-info">
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Selected Game</span>
               <span className="font-display" style={{ fontWeight: 700, color: activeGame ? 'var(--neon-green)' : 'var(--text-muted)' }}>
@@ -413,7 +413,7 @@ export const Lobby: React.FC = () => {
 
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          <div className="lobby-launch-actions">
             <button className="copy-btn" onClick={disconnect} style={{ gap: '0.5rem' }}>
               <LogOut size={16} /> Disconnect
             </button>
@@ -438,10 +438,10 @@ export const Lobby: React.FC = () => {
       </div>
 
       {/* Sidebar Column */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+      <div className="lobby-sidebar">
 
         {/* Chat Sidebar */}
-        <div className="lobby-chat-panel glass-panel" style={{ height: '360px' }}>
+        <div className="lobby-chat-panel glass-panel lobby-chat-compact">
           <div className="chat-header">
             <MessageSquare size={18} className="text-cyan" />
             <h3 className="chat-header-title">Lobby Chat</h3>

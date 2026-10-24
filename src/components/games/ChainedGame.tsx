@@ -1222,7 +1222,7 @@ export const ChainedGame: React.FC = () => {
       </div>
 
       {/* Helper Controls bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+      <div className="game-controls-summary" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
         <div>
           {isMobile ? (
             <span>Touch Controls: <span style={{ color: 'var(--text-primary)' }}>Left Screen (Move Left)</span> | <span style={{ color: 'var(--text-primary)' }}>Middle Screen (Jump)</span> | <span style={{ color: 'var(--text-primary)' }}>Right Screen (Move Right)</span></span>

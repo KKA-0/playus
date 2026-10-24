@@ -7,8 +7,8 @@ interface PrivacyPolicyProps {
 
 export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onClose }) => {
   return (
-    <div className="setup-container glass-panel" style={{ maxWidth: '800px', margin: '2rem auto', textAlign: 'left', padding: '2.5rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+    <div className="setup-container glass-panel privacy-container" style={{ maxWidth: '800px', margin: '2rem auto', textAlign: 'left', padding: '2.5rem' }}>
+      <div className="privacy-heading" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
         <ShieldCheck size={36} className="text-cyan" />
         <h1 className="logo-text font-display" style={{ margin: 0, fontSize: '2.5rem' }}>PRIVACY POLICY</h1>
       </div>
@@ -19,8 +19,8 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onClose }) => {
 
       <hr style={{ borderColor: 'var(--glass-border)', margin: '2rem 0' }} />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        <section style={{ display: 'flex', gap: '1rem' }}>
+      <div className="privacy-sections" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <section className="privacy-section" style={{ display: 'flex', gap: '1rem' }}>
           <div className="text-cyan" style={{ display: 'flex', alignItems: 'flex-start', paddingTop: '0.2rem' }}>
             <WifiOff size={24} />
           </div>
@@ -32,7 +32,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onClose }) => {
           </div>
         </section>
 
-        <section style={{ display: 'flex', gap: '1rem' }}>
+        <section className="privacy-section" style={{ display: 'flex', gap: '1rem' }}>
           <div className="text-magenta" style={{ display: 'flex', alignItems: 'flex-start', paddingTop: '0.2rem' }}>
             <Server size={24} />
           </div>
@@ -44,7 +44,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onClose }) => {
           </div>
         </section>
 
-        <section style={{ display: 'flex', gap: '1rem' }}>
+        <section className="privacy-section" style={{ display: 'flex', gap: '1rem' }}>
           <div className="text-green" style={{ display: 'flex', alignItems: 'flex-start', paddingTop: '0.2rem' }}>
             <Cpu size={24} />
           </div>
@@ -56,7 +56,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onClose }) => {
           </div>
         </section>
 
-        <section style={{ display: 'flex', gap: '1rem' }}>
+        <section className="privacy-section" style={{ display: 'flex', gap: '1rem' }}>
           <div className="text-yellow" style={{ display: 'flex', alignItems: 'flex-start', paddingTop: '0.2rem' }}>
             <Database size={24} />
           </div>
@@ -68,7 +68,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onClose }) => {
           </div>
         </section>
 
-        <section style={{ display: 'flex', gap: '1rem' }}>
+        <section className="privacy-section" style={{ display: 'flex', gap: '1rem' }}>
           <div className="text-purple" style={{ display: 'flex', alignItems: 'flex-start', paddingTop: '0.2rem' }}>
             <Lock size={24} />
           </div>

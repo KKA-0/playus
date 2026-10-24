@@ -53,7 +53,7 @@ const AppContent: React.FC = () => {
       <div className="cyber-grid"></div>
 
       {/* Global Header */}
-      <header className="header-container">
+      <header className={`header-container ${isGameStarted ? 'game-active' : ''}`}>
         <div 
           className="logo-section" 
           style={{ cursor: !isGameStarted ? 'pointer' : 'default' }}
@@ -100,7 +100,7 @@ const AppContent: React.FC = () => {
         )}
 
         {isConnected && (
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="connection-status-group">
             <div className="peer-badge" style={{ borderColor: 'var(--neon-green)' }}>
               <span className="status-dot connected"></span>
               <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
@@ -115,7 +115,7 @@ const AppContent: React.FC = () => {
       </header>
 
       {/* Main View Area */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main className="app-main">
         {!isGameStarted ? (
           showPrivacy ? (
             <PrivacyPolicy onClose={() => setShowPrivacy(false)} />

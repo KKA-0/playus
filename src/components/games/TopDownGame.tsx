@@ -1540,7 +1540,7 @@ export const TopDownGame: React.FC = () => {
 
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+      <div className="game-controls-summary" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '900px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
         <div>
           <span>Aim: </span><span style={{ color: 'var(--text-primary)' }}>Mouse Cursor</span> | <span>Shoot: </span><span style={{ color: 'var(--text-primary)' }}>Left Click</span>
         </div>
